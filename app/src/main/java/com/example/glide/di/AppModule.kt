@@ -1,11 +1,12 @@
 package com.example.glide.di
 
-import android.app.Application
-import androidx.room.Room
-import com.example.glide.data.local.TodoDao
-import com.example.glide.data.local.TodoDatabase
-import com.example.glide.domain.repository.TodoRepository
-import com.example.glide.domain.repository.TodoRepositoryImpl
+import com.example.glide.data.api.AuthApi
+import com.example.glide.data.local.SecureStorage
+import com.example.glide.data.repository.AuthRepositoryImpl
+import com.example.glide.domain.repository.AuthRepository
+import com.example.glide.domain.usecase.ForgotPasswordUseCase
+import com.example.glide.domain.usecase.LoginUseCase
+import com.example.glide.domain.usecase.LogoutUseCase
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -18,15 +19,20 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideDatabase(app: Application):TodoDatabase {
-        return Room.databaseBuilder(app, TodoDatabase::class.java, "todo_db").build()
-    }
+    fun provideAuthRepository(
+        authApi: AuthApi,
+        secureStorage: SecureStorage
+    ): AuthRepository = AuthRepositoryImpl(authApi, secureStorage)
 
     @Provides
     @Singleton
-    fun provideTodoDao(db: TodoDatabase): TodoDao = db.todoDao()
+    fun provideLoginUseCase(repository: AuthRepository): LoginUseCase = LoginUseCase(repository)
 
     @Provides
     @Singleton
-    fun provideTodoRepository(dao: TodoDao): TodoRepository = TodoRepositoryImpl(dao)
+    fun provideLogoutUseCase(repository: AuthRepository): LogoutUseCase = LogoutUseCase(repository)
+
+    @Provides
+    @Singleton
+    fun provideForgotPasswordUseCase(repository: AuthRepository): ForgotPasswordUseCase = ForgotPasswordUseCase(repository)
 }

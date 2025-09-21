@@ -76,4 +76,17 @@ dependencies {
     // Lifecycle & Coroutines
     implementation(libs.lifecycle.viewmodel.compose)
     implementation(libs.coroutines.android)
+
+    // Retrofit & OkHttp
+    implementation(libs.retrofit)
+    implementation(libs.retrofit.gson)
+    implementation(libs.gson)
+    implementation(libs.okhttp)
+    implementation(libs.okhttp.logging)
+
+    // DataStore
+    implementation(libs.androidx.datastore.preferences)
+
+    // Security
+    implementation(libs.androidx.security.crypto)
 }
