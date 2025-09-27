@@ -1,3 +1,4 @@
+==== glide/MainActivity.kt ====
 package com.example.glide
 
 import android.os.Bundle
@@ -15,4 +16,13 @@ class MainActivity : ComponentActivity() {
 //            }
         }
     }
-}
+}--- ---
+==== glide/MyApplication.kt ====
+package com.example.glide
+
+import android.app.Application
+import dagger.hilt.android.HiltAndroidApp
+
+@HiltAndroidApp
+class MyApplication : Application()
+--- ---

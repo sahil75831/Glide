@@ -1,37 +1,51 @@
 package com.example.glide.auth.data.repository
 
-import com.example.glide.auth.data.models.User
-import com.example.glide.auth.data.remote.AuthService
+import com.example.glide.auth.data.remote.api.AuthApi
+import com.example.glide.auth.data.remote.dto.CreateCommunityRequest
+import com.example.glide.auth.data.remote.dto.CreateCommunityResponse
+import com.example.glide.auth.data.remote.dto.VerifyOtpRequest
+import com.example.glide.auth.domain.model.CommunityCreationResult
+import com.example.glide.auth.domain.model.OtpVerificationResult
 import com.example.glide.auth.domain.repository.AuthRepository
 import javax.inject.Inject
 
 class AuthRepositoryImpl @Inject constructor(
-    private val api: AuthService
-) : AuthRepository {
-    override suspend fun createCommunity(user: User): Result<String> {
+    private val authApi: AuthApi
+): AuthRepository {
+    override suspend fun createCommunity(
+        name: String,
+        email: String,
+        phoneNumber: String,
+        communityName: String
+    ): CommunityCreationResult {
         return try {
-            val response = api.createCommunity(user)
+            val request: CreateCommunityRequest = CreateCommunityRequest(name, email, phoneNumber, communityName)
+            val response: CreateCommunityResponse = authApi.createCommunity(request)
             if (response.success) {
-                Result.success(response.message)
+                CommunityCreationResult.Success(response.sessionId ?: "")
             } else {
-                Result.failure(Exception(response.error ?: "Unknown error"))
+                CommunityCreationResult.Error(response.message ?: "Unknown error")
             }
         } catch (e: Exception) {
-            Result.failure(e)
+            CommunityCreationResult.Error(e.message ?: "Network error")
         }
     }
 
-    override suspend fun verifyOtp(phone: String, otp: String): Result<String> {
-        val body = mapOf("phone" to phone, "otp" to otp)
+    override suspend fun verifyOtp(
+        sessionId: String,
+        phoneNumber: String,
+        otp: String
+    ): OtpVerificationResult {
         return try {
-            val response = api.verifyOtp(body)
+            val request = VerifyOtpRequest(sessionId, otp, phoneNumber)
+            val response = authApi.verifyOtp(request)
             if (response.success) {
-                Result.success(response.message)
+                OtpVerificationResult.Success(response.token ?: "")
             } else {
-                Result.failure(Exception(response.error ?: "Unknown error"))
+                OtpVerificationResult.Error(response.message ?: "Unknown error")
             }
         } catch (e: Exception) {
-            Result.failure(e)
+            OtpVerificationResult.Error(e.message ?: "Network error")
         }
     }
 }
