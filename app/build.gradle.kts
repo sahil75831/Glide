@@ -89,4 +89,7 @@ dependencies {
 
     // Security
     implementation(libs.androidx.security.crypto)
+
+    // fonts
+    implementation(libs.androidx.appcompat)
 }

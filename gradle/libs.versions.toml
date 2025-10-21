@@ -26,6 +26,8 @@ gson = "2.10.1"
 datastore = "1.1.1"
 securityCrypto = "1.1.0-alpha06"  # For encrypted storage
 
+appcompat = "1.7.0" # or latest stable version
+
 
 [libraries]
 # Core Android
@@ -82,6 +84,8 @@ coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-androi
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
+
+androidx-appcompat = { module = "androidx.appcompat:appcompat", version.ref = "appcompat" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

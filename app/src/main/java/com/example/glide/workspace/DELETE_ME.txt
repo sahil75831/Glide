@@ -1,0 +1,76 @@
+@Composable
+fun AllPoppinsWeightsPreview() {
+    Column(modifier = Modifier.padding(8.dp)) {
+
+        Text(
+            "Poppins Thin",
+            fontFamily = Poppins,
+            fontWeight = FontWeight.Thin,
+            fontSize = 24.sp
+        )
+        Text(
+            "Poppins ExtraLight",
+            fontFamily = Poppins,
+            fontWeight = FontWeight.ExtraLight,
+            fontSize = 24.sp
+        )
+        Text(
+            "Poppins Light",
+            fontFamily = Poppins,
+            fontWeight = FontWeight.Light,
+            fontSize = 24.sp
+        )
+        Text(
+            "Poppins Regular",
+            fontFamily = Poppins,
+            fontWeight = FontWeight.Normal,
+            fontSize = 24.sp
+        )
+        Text(
+            "Poppins Medium",
+            fontFamily = Poppins,
+            fontWeight = FontWeight.Medium,
+            fontSize = 24.sp
+        )
+        Text(
+            "Poppins SemiBold",
+            fontFamily = Poppins,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 24.sp
+        )
+        Text(
+            "Poppins Bold",
+            fontFamily = Poppins,
+            fontWeight = FontWeight.Bold,
+            fontSize = 24.sp
+        )
+        Text(
+            "Poppins ExtraBold",
+            fontFamily = Poppins,
+            fontWeight = FontWeight.ExtraBold,
+            fontSize = 24.sp
+        )
+        Text(
+            "Poppins Black",
+            fontFamily = Poppins,
+            fontWeight = FontWeight.Black,
+            fontSize = 24.sp
+        )
+
+        // Italic examples
+        Text(
+            "Poppins Italic",
+            fontFamily = Poppins,
+            fontWeight = FontWeight.Normal,
+            fontStyle = FontStyle.Italic,
+            fontSize = 24.sp
+        )
+        Text(
+            "Poppins Bold Italic",
+            fontFamily = Poppins,
+            fontWeight = FontWeight.Bold,
+            fontStyle = FontStyle.Italic,
+            fontSize = 24.sp
+        )
+    }
+}
