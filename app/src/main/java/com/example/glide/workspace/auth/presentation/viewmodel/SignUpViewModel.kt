@@ -1,5 +1,6 @@
 package com.example.glide.workspace.auth.presentation.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.glide.workspace.auth.data.remote.dto.AuthRequest
@@ -88,7 +89,8 @@ class SignUpViewModel @Inject constructor(
                 )
 
                 val result = signUpUseCase(request)
-                println("result $result")
+
+                Log.d("SignUpViewModel", "Sign up result: $result")
 
                 when (result) {
                     is SignUpResult.Success -> {

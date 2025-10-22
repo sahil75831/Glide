@@ -123,6 +123,7 @@ package com.example.glide.workspace.auth.presentation.screen
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -138,14 +139,25 @@ fun SignUpScreen(
     val authFormState by viewModel.authFormState.collectAsState()
     val signUpUiState by viewModel.signUpUiState.collectAsState()
 
-    // Navigate on success
+//    // Navigate on success
+//    LaunchedEffect(signUpUiState.success) {
+//        if (signUpUiState.success) {
+//            navController.navigate(Routes.VERIFY_OTP) {
+//                popUpTo(Routes.SIGN_UP) { inclusive = true } // remove signup from backstack
+//            }
+//        }
+//    }
+
     LaunchedEffect(signUpUiState.success) {
         if (signUpUiState.success) {
-            navController.navigate(Routes.VERIFY_OTP) {
-                popUpTo(Routes.SIGN_UP) { inclusive = true } // remove signup from backstack
+            val email = authFormState.email
+            val phone = authFormState.phone
+            navController.navigate(Routes.verifyOtpRoute(email, phone)) {
+                popUpTo(Routes.SIGN_UP) { inclusive = true }
             }
         }
     }
+
 
     Column(
         modifier = Modifier
@@ -219,6 +231,7 @@ fun SignUpScreen(
             Text(text = if (signUpUiState.isLoading) "Signing Up..." else "Sign Up")
         }
 
+
         signUpUiState.message?.let { msg ->
             Text(
                 text = msg,
@@ -231,14 +244,80 @@ fun SignUpScreen(
 }
 
 
+//@Composable
+//fun VerifyOtpScreen() {
+//    Box(
+//        modifier = Modifier
+//            .fillMaxSize()
+//            .padding(16.dp),
+//        contentAlignment = androidx.compose.ui.Alignment.Center
+//    ) {
+//        Text(text = "Verify OTP", style = MaterialTheme.typography.headlineMedium)
+//    }
+//}
+
+
 @Composable
-fun VerifyOtpScreen() {
-    Box(
+fun VerifyOtpScreen(
+    email: String,
+    phone: String
+) {
+    var emailOtp by remember { mutableStateOf("") }
+    var phoneOtp by remember { mutableStateOf("") }
+
+    Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp),
-        contentAlignment = androidx.compose.ui.Alignment.Center
+            .padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(text = "Verify OTP", style = MaterialTheme.typography.headlineMedium)
+        Text(
+            text = "Verify OTP",
+            style = MaterialTheme.typography.headlineMedium
+        )
+
+        // Email (pre-filled and read-only)
+        OutlinedTextField(
+            value = email,
+            onValueChange = {},
+            label = { Text("Email") },
+            modifier = Modifier.fillMaxWidth(),
+            enabled = false
+        )
+
+        // Email OTP
+        OutlinedTextField(
+            value = emailOtp,
+            onValueChange = { emailOtp = it },
+            label = { Text("Email OTP") },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        // Mobile (pre-filled and read-only)
+        OutlinedTextField(
+            value = phone,
+            onValueChange = {},
+            label = { Text("Mobile") },
+            modifier = Modifier.fillMaxWidth(),
+            enabled = false
+        )
+
+        // Mobile OTP
+        OutlinedTextField(
+            value = phoneOtp,
+            onValueChange = { phoneOtp = it },
+            label = { Text("Mobile OTP") },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Button(
+            onClick = { /* TODO: verify OTP logic here later */ },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Verify")
+        }
     }
 }

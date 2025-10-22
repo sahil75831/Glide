@@ -26,6 +26,8 @@ import com.example.glide.workspace.auth.presentation.viewmodel.SignUpViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import com.example.glide.workspace.ui.theme.GlideTheme
 import com.example.glide.workspace.welcome.presentation.screens.Welcome
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -65,6 +67,11 @@ object Routes {
     const val WELCOME = "welcome"
     const val SIGN_UP = "sign_up"
     const val VERIFY_OTP = "verify_otp"
+
+    // Route with parameters
+    fun verifyOtpRoute(email: String, phone: String): String {
+        return "verify_otp?email=$email&phone=$phone"
+    }
 }
 
 @Composable
@@ -77,9 +84,19 @@ fun AppNavGraph(navController: NavHostController) {
             Welcome()
         }
 
-        composable(Routes.VERIFY_OTP) {
-            VerifyOtpScreen()
-        }
+
+                composable(
+                    route = "verify_otp?email={email}&phone={phone}",
+                    arguments = listOf(
+                        navArgument("email") { type = NavType.StringType; defaultValue = "" },
+                        navArgument("phone") { type = NavType.StringType; defaultValue = "" }
+                    )
+                ) { backStackEntry ->
+                    val email = backStackEntry.arguments?.getString("email") ?: ""
+                    val phone = backStackEntry.arguments?.getString("phone") ?: ""
+                    VerifyOtpScreen(email, phone)
+                }
+
 
 
         composable(Routes.SIGN_UP) {
