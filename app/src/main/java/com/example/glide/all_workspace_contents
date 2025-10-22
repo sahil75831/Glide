@@ -1,0 +1,755 @@
+=== workspace/auth/data/remote/api/AuthApi.kt ===
+package com.example.glide.workspace.auth.data.remote.api
+
+import com.example.glide.workspace.auth.data.remote.dto.AuthRequest
+import com.example.glide.workspace.auth.data.remote.dto.AuthResponse
+import com.example.glide.workspace.core.utils.ApiEndpoints
+import retrofit2.http.Body
+import retrofit2.http.POST
+
+interface AuthApi {
+    @POST(ApiEndpoints.REGISTER_USER)
+    suspend fun signup(@Body() authRequest: AuthRequest): AuthResponse
+}=== -e-n-d- ===
+=== workspace/auth/data/remote/dto/AuthRequest.kt ===
+package com.example.glide.workspace.auth.data.remote.dto
+
+import com.google.gson.annotations.SerializedName
+
+data class AuthRequest(
+    @SerializedName("name") val name: String,
+    @SerializedName("phone") val phone: String,
+    @SerializedName("email") val email: String,
+    @SerializedName("governmentId") val governmentId: String,
+    @SerializedName("password") val password: String,
+    @SerializedName("governmentIdType") val governmentIdType: String,
+    @SerializedName("age") val age: Int,
+    @SerializedName("gender") val gender: String,
+    @SerializedName("address") val address: String
+)=== -e-n-d- ===
+=== workspace/auth/data/remote/dto/AuthResponse.kt ===
+package com.example.glide.workspace.auth.data.remote.dto
+
+import com.google.gson.annotations.SerializedName
+
+data class AuthResponse(
+    @SerializedName("success") val success: Boolean,
+    @SerializedName("message") val message: String,
+    @SerializedName("user") val user: User? = null,
+    @SerializedName("sessionId") val sessionId: String? = null
+)=== -e-n-d- ===
+=== workspace/auth/data/remote/dto/User.kt ===
+package com.example.glide.workspace.auth.data.remote.dto
+
+import com.google.gson.annotations.SerializedName
+
+data class User(
+    @SerializedName("id") val id: String,
+    @SerializedName("name") val name: String,
+    @SerializedName("phone") val phone: String,
+    @SerializedName("email") val email: String,
+    @SerializedName("governmentId") val governmentId: String,
+    @SerializedName("governmentIdType") val governmentIdType: String,
+    @SerializedName("age") val age: Int,
+    @SerializedName("gender") val gender: String,
+    @SerializedName("address") val address: String,
+    @SerializedName("phoneVerified") val phoneVerified: Boolean,
+    @SerializedName("emailVerified") val emailVerified: Boolean,
+    @SerializedName("governmentIdVerified") val governmentIdVerified: Boolean
+)=== -e-n-d- ===
+=== workspace/auth/data/repository/AuthRepositoryImpl.kt ===
+package com.example.glide.workspace.auth.data.repository
+
+import com.example.glide.workspace.auth.data.remote.api.AuthApi
+import com.example.glide.workspace.auth.data.remote.dto.AuthRequest
+import com.example.glide.workspace.auth.domain.models.SignUpResult
+import com.example.glide.workspace.auth.domain.repository.AuthRepository
+import javax.inject.Inject
+
+class AuthRepositoryImpl @Inject constructor(
+    private val authApi: AuthApi
+): AuthRepository {
+    override suspend fun signUp(authRequest: AuthRequest): SignUpResult {
+        return try {
+            val response = authApi.signup(authRequest)
+
+            if (response.success && response.user != null) {
+                SignUpResult.Success(
+                    success = true,
+                    message = response.message ?: "Sign up successful",
+                    user = response.user,
+                    sessionId = response.sessionId ?: ""
+                )
+            } else {
+                SignUpResult.Error(
+                    success = false,
+                    message = response.message ?: "Sign up failed"
+                )
+            }
+        } catch (e: Exception) {
+            SignUpResult.Error(
+                success = false,
+                message = e.localizedMessage ?: "Unexpected error"
+            )
+        }
+    }
+}=== -e-n-d- ===
+=== workspace/auth/di/NetworkModule.kt ===
+package com.example.glide.workspace.auth.di
+
+import com.example.glide.workspace.auth.data.remote.api.AuthApi
+import com.example.glide.workspace.core.utils.ApiEndpoints
+import dagger.Module
+import dagger.Provides
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+import okhttp3.OkHttpClient
+import okhttp3.logging.HttpLoggingInterceptor
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
+import javax.inject.Singleton
+
+@Module
+@InstallIn(SingletonComponent::class)
+object NetworkModule {
+    @Provides
+    @Singleton
+    fun provideOkHttpClient(): OkHttpClient {
+        val logging = HttpLoggingInterceptor().apply {
+            level = HttpLoggingInterceptor.Level.BODY
+        }
+        return OkHttpClient.Builder().addInterceptor(logging).build()
+    }
+
+    @Provides
+    @Singleton
+    fun provideRetrofit(okHttpClient: OkHttpClient): Retrofit {
+        return Retrofit.Builder()
+            .baseUrl(ApiEndpoints.BASE_URL)
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+    }
+
+    @Provides
+    @Singleton
+    fun provideAuthApi(retrofit: Retrofit): AuthApi {
+        return retrofit.create(AuthApi::class.java)
+    }
+}=== -e-n-d- ===
+=== workspace/auth/di/RepositoryModule.kt ===
+package com.example.glide.workspace.auth.di
+
+import com.example.glide.workspace.auth.data.repository.AuthRepositoryImpl
+import com.example.glide.workspace.auth.domain.repository.AuthRepository
+import dagger.Binds
+import dagger.Module
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+import javax.inject.Singleton
+
+@Module
+@InstallIn(SingletonComponent::class)
+abstract class RepositoryModule {
+    @Binds
+    @Singleton
+    abstract fun bindAuthRepository(
+        impl: AuthRepositoryImpl
+    ): AuthRepository
+}
+=== -e-n-d- ===
+=== workspace/auth/domain/models/SignUpResult.kt ===
+package com.example.glide.workspace.auth.domain.models
+
+import com.example.glide.workspace.auth.data.remote.dto.User
+
+sealed class SignUpResult {
+    data class Success(
+        val success: Boolean,
+        val message: String,
+        val user: User,
+        val sessionId: String
+        ): SignUpResult()
+
+    data class Error(
+        val success: Boolean,
+        val message: String
+    ): SignUpResult()
+}=== -e-n-d- ===
+=== workspace/auth/domain/repository/AuthRepository.kt ===
+package com.example.glide.workspace.auth.domain.repository
+
+import com.example.glide.workspace.auth.data.remote.dto.AuthRequest
+import com.example.glide.workspace.auth.domain.models.SignUpResult
+
+interface AuthRepository {
+    suspend fun signUp(authRequest: AuthRequest): SignUpResult
+}=== -e-n-d- ===
+=== workspace/auth/domain/usecases/SignUpUseCase.kt ===
+package com.example.glide.workspace.auth.domain.usecases
+
+import com.example.glide.workspace.auth.data.remote.dto.AuthRequest
+import com.example.glide.workspace.auth.domain.models.SignUpResult
+import com.example.glide.workspace.auth.domain.repository.AuthRepository
+import javax.inject.Inject
+
+class SignUpUseCase @Inject constructor(
+    private val authRepository: AuthRepository
+) {
+    suspend operator fun invoke(authRequest: AuthRequest): SignUpResult {
+        return authRepository.signUp(authRequest)
+    }
+}=== -e-n-d- ===
+=== workspace/auth/presentation/screen/SignUpScreen.kt ===
+package com.example.glide.workspace.auth.presentation.screen
+
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.glide.workspace.auth.presentation.viewmodel.AuthFormState
+import com.example.glide.workspace.auth.presentation.viewmodel.SignUpViewModel
+import com.example.glide.workspace.auth.domain.models.SignUpResult
+
+@Composable
+fun SignUpScreen(
+    viewModel: SignUpViewModel = viewModel()
+) {
+    val authFormState by viewModel.authFormState.collectAsState()
+    val signUpUiState by viewModel.signUpUiState.collectAsState()
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        // Name
+        OutlinedTextField(
+            value = authFormState.name,
+            onValueChange = { viewModel.onNameChange(it) },
+            label = { Text("Name") },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        // Email
+        OutlinedTextField(
+            value = authFormState.email,
+            onValueChange = { viewModel.onEmailChange(it) },
+            label = { Text("Email") },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        // Phone
+        OutlinedTextField(
+            value = authFormState.phone,
+            onValueChange = { viewModel.onPhoneChange(it) },
+            label = { Text("Phone") },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        // Password
+        OutlinedTextField(
+            value = authFormState.password,
+            onValueChange = { viewModel.onPasswordChange(it) },
+            label = { Text("Password") },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        // Government ID
+        OutlinedTextField(
+            value = authFormState.governmentId,
+            onValueChange = { viewModel.onGovernmentIdChange(it) },
+            label = { Text("Government ID") },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        // Government ID Type
+        OutlinedTextField(
+            value = authFormState.governmentIdType,
+            onValueChange = { viewModel.onGovernmentIdTypeChange(it) },
+            label = { Text("Government ID Type") },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        // Age
+        OutlinedTextField(
+            value = authFormState.age,
+            onValueChange = { viewModel.onAgeChange(it) },
+            label = { Text("Age") },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        // Gender
+        OutlinedTextField(
+            value = authFormState.gender,
+            onValueChange = { viewModel.onGenderChange(it) },
+            label = { Text("Gender") },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        // Address
+        OutlinedTextField(
+            value = authFormState.address,
+            onValueChange = { viewModel.onAddressChange(it) },
+            label = { Text("Address") },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Signup button
+        Button(
+            onClick = { viewModel.signUp() },
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !signUpUiState.isLoading
+        ) {
+            Text(text = if (signUpUiState.isLoading) "Signing Up..." else "Sign Up")
+        }
+
+        // Show success / error
+        signUpUiState.message?.let { msg ->
+            Text(
+                text = msg,
+                color = if (signUpUiState.success) MaterialTheme.colorScheme.primary
+                else MaterialTheme.colorScheme.error,
+                modifier = Modifier.padding(top = 8.dp)
+            )
+        }
+    }
+}
+=== -e-n-d- ===
+=== workspace/auth/presentation/viewmodel/SignUpViewModel.kt ===
+package com.example.glide.workspace.auth.presentation.viewmodel
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.glide.workspace.auth.data.remote.dto.AuthRequest
+import com.example.glide.workspace.auth.domain.models.SignUpResult
+import com.example.glide.workspace.auth.domain.usecases.SignUpUseCase
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+// --- UI Form State ---
+data class AuthFormState(
+    val name: String = "",
+    val email: String = "",
+    val phone: String = "",
+    val password: String = "",
+    val governmentId: String = "",
+    val governmentIdType: String = "",
+    val age: String = "",
+    val gender: String = "",
+    val address: String = ""
+)
+
+// --- UI SignUp Result State ---
+data class SignUpUiState(
+    val isLoading: Boolean = false,
+    val success: Boolean = false,
+    val message: String? = null
+)
+
+class SignUpViewModel @Inject constructor(
+    private val signUpUseCase: SignUpUseCase
+) : ViewModel() {
+
+    // --- Form State ---
+    private val _authFormState = MutableStateFlow(AuthFormState())
+    val authFormState: StateFlow<AuthFormState> = _authFormState.asStateFlow()
+
+    // --- Signup UI State ---
+    private val _signUpUiState = MutableStateFlow(SignUpUiState())
+    val signUpUiState: StateFlow<SignUpUiState> = _signUpUiState.asStateFlow()
+
+    // --- Update individual fields ---
+    fun onNameChange(value: String) = updateFormState { copy(name = value) }
+    fun onEmailChange(value: String) = updateFormState { copy(email = value) }
+    fun onPhoneChange(value: String) = updateFormState { copy(phone = value) }
+    fun onPasswordChange(value: String) = updateFormState { copy(password = value) }
+    fun onGovernmentIdChange(value: String) = updateFormState { copy(governmentId = value) }
+    fun onGovernmentIdTypeChange(value: String) = updateFormState { copy(governmentIdType = value) }
+    fun onAgeChange(value: String) = updateFormState { copy(age = value) }
+    fun onGenderChange(value: String) = updateFormState { copy(gender = value) }
+    fun onAddressChange(value: String) = updateFormState { copy(address = value) }
+
+    private fun updateFormState(update: AuthFormState.() -> AuthFormState) {
+        _authFormState.value = _authFormState.value.update()
+    }
+
+    // --- Sign Up ---
+    fun signUp() {
+        viewModelScope.launch {
+            _signUpUiState.value = SignUpUiState(isLoading = true)
+
+            try {
+                val form = _authFormState.value
+                val request = AuthRequest(
+                    name = form.name,
+                    email = form.email,
+                    phone = form.phone,
+                    password = form.password,
+                    governmentId = form.governmentId,
+                    governmentIdType = form.governmentIdType,
+                    age = form.age.toIntOrNull() ?: 0,
+                    gender = form.gender,
+                    address = form.address
+                )
+
+                val response = signUpUseCase(request)
+
+                when (response) {
+                    is SignUpResult.Success -> {
+                        _signUpUiState.value = SignUpUiState(
+                            isLoading = false,
+                            success = true,
+                            message = response.message
+                        )
+                    }
+                    is SignUpResult.Error -> {
+                        _signUpUiState.value = SignUpUiState(
+                            isLoading = false,
+                            success = false,
+                            message = response.message
+                        )
+                    }
+                }
+
+
+            } catch (e: Exception) {
+                _signUpUiState.value = SignUpUiState(
+                    isLoading = false,
+                    success = false,
+                    message = e.message ?: "Unexpected error occurred"
+                )
+            }
+        }
+    }
+
+    // --- Reset form and UI state ---
+    fun resetForm() {
+        _authFormState.value = AuthFormState()
+        _signUpUiState.value = SignUpUiState()
+    }
+}
+=== -e-n-d- ===
+=== workspace/core/assets/welcome_screen.svg ===
+<svg width="346" height="327" viewBox="0 0 346 327" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path >....
+</svg>
+=== -e-n-d- ===
+=== workspace/core/utils/ApiEndpoints.kt ===
+package com.example.glide.workspace.core.utils
+
+object ApiEndpoints {
+    const val BASE_URL = "http://10.0.2.2:3000/"
+    const val REGISTER_USER = "/api/create-user"
+}=== -e-n-d- ===
+=== workspace/DELETE_ME.txt ===
+@Composable
+fun AllPoppinsWeightsPreview() {
+    Column(modifier = Modifier.padding(8.dp)) {
+
+        Text(
+            "Poppins Thin",
+            fontFamily = Poppins,
+            fontWeight = FontWeight.Thin,
+            fontSize = 24.sp
+        )
+        Text(
+            "Poppins ExtraLight",
+            fontFamily = Poppins,
+            fontWeight = FontWeight.ExtraLight,
+            fontSize = 24.sp
+        )
+        Text(
+            "Poppins Light",
+            fontFamily = Poppins,
+            fontWeight = FontWeight.Light,
+            fontSize = 24.sp
+        )
+        Text(
+            "Poppins Regular",
+            fontFamily = Poppins,
+            fontWeight = FontWeight.Normal,
+            fontSize = 24.sp
+        )
+        Text(
+            "Poppins Medium",
+            fontFamily = Poppins,
+            fontWeight = FontWeight.Medium,
+            fontSize = 24.sp
+        )
+        Text(
+            "Poppins SemiBold",
+            fontFamily = Poppins,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 24.sp
+        )
+        Text(
+            "Poppins Bold",
+            fontFamily = Poppins,
+            fontWeight = FontWeight.Bold,
+            fontSize = 24.sp
+        )
+        Text(
+            "Poppins ExtraBold",
+            fontFamily = Poppins,
+            fontWeight = FontWeight.ExtraBold,
+            fontSize = 24.sp
+        )
+        Text(
+            "Poppins Black",
+            fontFamily = Poppins,
+            fontWeight = FontWeight.Black,
+            fontSize = 24.sp
+        )
+
+        // Italic examples
+        Text(
+            "Poppins Italic",
+            fontFamily = Poppins,
+            fontWeight = FontWeight.Normal,
+            fontStyle = FontStyle.Italic,
+            fontSize = 24.sp
+        )
+        Text(
+            "Poppins Bold Italic",
+            fontFamily = Poppins,
+            fontWeight = FontWeight.Bold,
+            fontStyle = FontStyle.Italic,
+            fontSize = 24.sp
+        )
+    }
+}
+=== -e-n-d- ===
+=== workspace/ui/theme/Typography.kt ===
+package com.example.glide.workspace.ui.theme
+
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Typography
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
+import com.example.glide.R
+
+// 1️⃣ Define the Poppins font family with all weights
+val Poppins = FontFamily(
+    Font(R.font.poppins_thin, FontWeight.Thin),
+    Font(R.font.poppins_light, FontWeight.Light),
+    Font(R.font.poppins_regular, FontWeight.Normal),
+    Font(R.font.poppins_medium, FontWeight.Medium),
+    Font(R.font.poppins_semi_bold, FontWeight.SemiBold),
+    Font(R.font.poppins_bold, FontWeight.Bold),
+    Font(R.font.poppins_black, FontWeight.Black)
+)
+
+// 2️⃣ Define typography with Poppins Light as default for all text styles
+val AppTypography = Typography(
+    displayLarge = TextStyle(
+        fontFamily = Poppins,
+        fontWeight = FontWeight.Light,
+        fontSize = 57.sp,
+        lineHeight = 64.sp
+    ),
+    displayMedium = TextStyle(
+        fontFamily = Poppins,
+        fontWeight = FontWeight.Light,
+        fontSize = 45.sp,
+        lineHeight = 52.sp
+    ),
+    displaySmall = TextStyle(
+        fontFamily = Poppins,
+        fontWeight = FontWeight.Light,
+        fontSize = 36.sp,
+        lineHeight = 44.sp
+    ),
+    headlineLarge = TextStyle(
+        fontFamily = Poppins,
+        fontWeight = FontWeight.Light,
+        fontSize = 32.sp,
+        lineHeight = 40.sp
+    ),
+    headlineMedium = TextStyle(
+        fontFamily = Poppins,
+        fontWeight = FontWeight.Light,
+        fontSize = 28.sp,
+        lineHeight = 36.sp
+    ),
+    headlineSmall = TextStyle(
+        fontFamily = Poppins,
+        fontWeight = FontWeight.Light,
+        fontSize = 24.sp,
+        lineHeight = 32.sp
+    ),
+    titleLarge = TextStyle(
+        fontFamily = Poppins,
+        fontWeight = FontWeight.Light,
+        fontSize = 22.sp,
+        lineHeight = 28.sp
+    ),
+    titleMedium = TextStyle(
+        fontFamily = Poppins,
+        fontWeight = FontWeight.Light,
+        fontSize = 16.sp,
+        lineHeight = 24.sp
+    ),
+    titleSmall = TextStyle(
+        fontFamily = Poppins,
+        fontWeight = FontWeight.Light,
+        fontSize = 14.sp,
+        lineHeight = 20.sp
+    ),
+    bodyLarge = TextStyle(
+        fontFamily = Poppins,
+        fontWeight = FontWeight.Light,
+        fontSize = 16.sp,
+        lineHeight = 24.sp
+    ),
+    bodyMedium = TextStyle(
+        fontFamily = Poppins,
+        fontWeight = FontWeight.Light,
+        fontSize = 14.sp,
+        lineHeight = 20.sp
+    ),
+    bodySmall = TextStyle(
+        fontFamily = Poppins,
+        fontWeight = FontWeight.Light,
+        fontSize = 12.sp,
+        lineHeight = 16.sp
+    ),
+    labelLarge = TextStyle(
+        fontFamily = Poppins,
+        fontWeight = FontWeight.Light,
+        fontSize = 14.sp,
+        lineHeight = 20.sp
+    ),
+    labelMedium = TextStyle(
+        fontFamily = Poppins,
+        fontWeight = FontWeight.Light,
+        fontSize = 12.sp,
+        lineHeight = 16.sp
+    ),
+    labelSmall = TextStyle(
+        fontFamily = Poppins,
+        fontWeight = FontWeight.Light,
+        fontSize = 11.sp,
+        lineHeight = 16.sp
+    )
+)
+
+@Composable
+fun GlideTheme(content: @Composable () -> Unit) {
+    MaterialTheme(
+//        colorScheme = LightColorScheme, // or your own scheme
+        typography = AppTypography, // ✅ apply Poppins Light globally
+        content = content
+    )
+}=== -e-n-d- ===
+=== workspace/welcome/presentation/screens/Welcome.kt ===
+package com.example.glide.workspace.welcome.presentation.screens
+
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.example.glide.R
+import com.example.glide.workspace.ui.theme.Poppins
+
+//@Preview
+@Composable
+fun Welcome(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier.background(Color.White)
+            .fillMaxHeight()
+            .safeDrawingPadding()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxHeight(),
+            verticalArrangement = Arrangement.SpaceBetween,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // Image takes half the height
+            Image(
+                painter = painterResource(id = R.drawable.welcome_screen),
+                contentDescription = "Welcome Image",
+                contentScale = ContentScale.Fit,
+                modifier = Modifier
+                    .fillMaxHeight(0.5f)
+            )
+
+            // Row takes half the height
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight()
+                    .padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight(),
+                    verticalArrangement = Arrangement.SpaceBetween,
+                    horizontalAlignment = Alignment.End   // <-- aligns children to right
+                ) {
+                    Text(
+                        text = "Hello and welcome!",
+                        fontFamily = Poppins,
+                        fontWeight = FontWeight.Normal,
+                        fontSize = 40.sp,
+                        letterSpacing = 1.8.sp,
+                        lineHeight = 36.sp,
+                        textAlign = TextAlign.Start,  // <-- text inside also aligns to right
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .fillMaxHeight(0.5f)
+                            .padding(end = 8.dp)
+                    )
+                    Text(
+                        text = "This is your space to\n" +
+                                "connect and build\n communities together..",
+                        fontFamily = Poppins,
+                        fontWeight = FontWeight.Normal,
+                        fontSize = 24.sp,
+                        letterSpacing = 1.5.sp,
+                        lineHeight = 32.sp,
+                        textAlign = TextAlign.End,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .fillMaxHeight(1f)
+                            .padding(end = 8.dp)
+                    )
+                }
+
+            }
+        }
+    }
+}=== -e-n-d- ===

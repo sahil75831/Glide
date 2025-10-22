@@ -1,0 +1,576 @@
+=== workspace/auth/data/remote/api/AuthApi.kt ===
+package com.example.glide.workspace.auth.data.remote.api
+
+import com.example.glide.workspace.auth.data.remote.dto.AuthRequest
+import com.example.glide.workspace.auth.data.remote.dto.AuthResponse
+import com.example.glide.workspace.core.utils.ApiEndpoints
+import retrofit2.http.Body
+import retrofit2.http.POST
+
+interface AuthApi {
+    @POST(ApiEndpoints.REGISTER_USER)
+    suspend fun signup(@Body() authRequest: AuthRequest): AuthResponse
+}\n-------\n
+=== workspace/auth/data/remote/dto/AuthRequest.kt ===
+package com.example.glide.workspace.auth.data.remote.dto
+
+import com.google.gson.annotations.SerializedName
+
+data class AuthRequest(
+    @SerializedName("name") val name: String,
+    @SerializedName("phone") val phone: String,
+    @SerializedName("email") val email: String,
+    @SerializedName("governmentId") val governmentId: String,
+    @SerializedName("password") val password: String,
+    @SerializedName("governmentIdType") val governmentIdType: String,
+    @SerializedName("age") val age: Int,
+    @SerializedName("gender") val gender: String,
+    @SerializedName("address") val address: String
+)\n-------\n
+=== workspace/auth/data/remote/dto/AuthResponse.kt ===
+package com.example.glide.workspace.auth.data.remote.dto
+
+import com.google.gson.annotations.SerializedName
+
+data class AuthResponse(
+    @SerializedName("success") val success: Boolean,
+    @SerializedName("message") val message: String,
+    @SerializedName("user") val user: User? = null,
+    @SerializedName("sessionId") val sessionId: String? = null
+)\n-------\n
+=== workspace/auth/data/remote/dto/User.kt ===
+package com.example.glide.workspace.auth.data.remote.dto
+
+import com.google.gson.annotations.SerializedName
+
+data class User(
+    @SerializedName("id") val id: String,
+    @SerializedName("name") val name: String,
+    @SerializedName("phone") val phone: String,
+    @SerializedName("email") val email: String,
+    @SerializedName("governmentId") val governmentId: String,
+    @SerializedName("governmentIdType") val governmentIdType: String,
+    @SerializedName("age") val age: Int,
+    @SerializedName("gender") val gender: String,
+    @SerializedName("address") val address: String,
+    @SerializedName("phoneVerified") val phoneVerified: Boolean,
+    @SerializedName("emailVerified") val emailVerified: Boolean,
+    @SerializedName("governmentIdVerified") val governmentIdVerified: Boolean
+)\n-------\n
+=== workspace/auth/data/repository/AuthRepositoryImpl.kt ===
+package com.example.glide.workspace.auth.data.repository
+
+import com.example.glide.workspace.auth.data.remote.api.AuthApi
+import com.example.glide.workspace.auth.data.remote.dto.AuthRequest
+import com.example.glide.workspace.auth.domain.models.SignUpResult
+import com.example.glide.workspace.auth.domain.repository.AuthRepository
+import javax.inject.Inject
+
+class AuthRepositoryImpl @Inject constructor(
+    private val authApi: AuthApi
+): AuthRepository {
+    override suspend fun signUp(authRequest: AuthRequest): SignUpResult {
+        return try {
+            val response = authApi.signup(authRequest)
+
+            if (response.success && response.user != null) {
+                SignUpResult.Success(
+                    success = true,
+                    message = response.message ?: "Sign up successful",
+                    user = response.user,
+                    sessionId = response.sessionId ?: ""
+                )
+            } else {
+                SignUpResult.Error(
+                    success = false,
+                    message = response.message ?: "Sign up failed"
+                )
+            }
+        } catch (e: Exception) {
+            SignUpResult.Error(
+                success = false,
+                message = e.localizedMessage ?: "Unexpected error"
+            )
+        }
+    }
+}\n-------\n
+=== workspace/auth/di/NetworkModule.kt ===
+package com.example.glide.workspace.auth.di
+
+import com.example.glide.workspace.auth.data.remote.api.AuthApi
+import com.example.glide.workspace.core.utils.ApiEndpoints
+import dagger.Module
+import dagger.Provides
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+import okhttp3.OkHttpClient
+import okhttp3.logging.HttpLoggingInterceptor
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
+import javax.inject.Singleton
+
+@Module
+@InstallIn(SingletonComponent::class)
+object NetworkModule {
+    @Provides
+    @Singleton
+    fun provideOkHttpClient(): OkHttpClient {
+        val logging = HttpLoggingInterceptor().apply {
+            level = HttpLoggingInterceptor.Level.BODY
+        }
+        return OkHttpClient.Builder().addInterceptor(logging).build()
+    }
+
+    @Provides
+    @Singleton
+    fun provideRetrofit(okHttpClient: OkHttpClient): Retrofit {
+        return Retrofit.Builder()
+            .baseUrl(ApiEndpoints.BASE_URL)
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+    }
+
+    @Provides
+    @Singleton
+    fun provideAuthApi(retrofit: Retrofit): AuthApi {
+        return retrofit.create(AuthApi::class.java)
+    }
+}\n-------\n
+=== workspace/auth/di/RepositoryModule.kt ===
+package com.example.glide.workspace.auth.di
+
+import com.example.glide.workspace.auth.data.repository.AuthRepositoryImpl
+import com.example.glide.workspace.auth.domain.repository.AuthRepository
+import dagger.Binds
+import dagger.Module
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+import javax.inject.Singleton
+
+@Module
+@InstallIn(SingletonComponent::class)
+abstract class RepositoryModule {
+    @Binds
+    @Singleton
+    abstract fun bindAuthRepository(
+        impl: AuthRepositoryImpl
+    ): AuthRepository
+}
+\n-------\n
+=== workspace/auth/domain/models/SignUpResult.kt ===
+package com.example.glide.workspace.auth.domain.models
+
+import com.example.glide.workspace.auth.data.remote.dto.User
+
+sealed class SignUpResult {
+    data class Success(
+        val success: Boolean,
+        val message: String,
+        val user: User,
+        val sessionId: String
+        ): SignUpResult()
+
+    data class Error(
+        val success: Boolean,
+        val message: String
+    ): SignUpResult()
+}\n-------\n
+=== workspace/auth/domain/repository/AuthRepository.kt ===
+package com.example.glide.workspace.auth.domain.repository
+
+import com.example.glide.workspace.auth.data.remote.dto.AuthRequest
+import com.example.glide.workspace.auth.domain.models.SignUpResult
+
+interface AuthRepository {
+    suspend fun signUp(authRequest: AuthRequest): SignUpResult
+}\n-------\n
+=== workspace/auth/domain/usecases/SignUpUseCase.kt ===
+package com.example.glide.workspace.auth.domain.usecases
+
+import com.example.glide.workspace.auth.data.remote.dto.AuthRequest
+import com.example.glide.workspace.auth.domain.models.SignUpResult
+import com.example.glide.workspace.auth.domain.repository.AuthRepository
+import javax.inject.Inject
+
+class SignUpUseCase @Inject constructor(
+    private val authRepository: AuthRepository
+) {
+    suspend operator fun invoke(authRequest: AuthRequest): SignUpResult {
+        return authRepository.signUp(authRequest)
+    }
+}\n-------\n
+=== workspace/auth/presentation/screen/SignUpScreen.kt ===
+package com.example.glide.workspace.auth.presentation.screen
+
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.TextField
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import com.example.glide.workspace.auth.presentation.viewmodel.SignUpViewModel
+
+@Composable
+fun SignUpScreen(viewModel: SignUpViewModel) {
+    val signUpState by viewModel.signUpState.collectAsState()
+
+    Column (modifier = Modifier.padding(16.dp)) {
+
+        TextField(
+            value = viewModel.name.value,
+            onValueChange = { viewModel.onNameChanged(it) },
+            label = { Text("Name") }
+        )
+        TextField(
+            value = viewModel.email.value,
+            onValueChange = { viewModel.onEmailChanged(it) },
+            label = { Text("Email") }
+        )
+        TextField(
+            value = viewModel.phone.value,
+            onValueChange = { viewModel.onPhoneChanged(it) },
+            label = { Text("Phone") }
+        )
+        TextField(
+            value = viewModel.password.value,
+            onValueChange = { viewModel.onPasswordChanged(it) },
+            label = { Text("Password") }
+        )
+        // Add other fields similarly...
+
+        Button(onClick = { viewModel.signUp() }) {
+            Text("Sign Up")
+        }
+
+        when (signUpState) {
+            is SignUpResult.Success -> {
+                Text("Signup Successful!")
+            }
+            is SignUpResult.Error -> {
+                Text("Error: ${(signUpState as SignUpResult.Error).message}")
+            }
+            else -> {}
+        }
+    }
+}
+\n-------\n
+=== workspace/auth/presentation/viewmodel/SignUpViewModel.kt ===
+\n-------\n
+=== workspace/core/assets/welcome_screen.svg ===
+<svg width="346" height="327" viewBox="0 0 346 327" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M345.6..........896 97.6331L54.1256 105.714Z" fill="black"/>
+</svg>
+\n-------\n
+=== workspace/core/utils/ApiEndpoints.kt ===
+package com.example.glide.workspace.core.utils
+
+object ApiEndpoints {
+    const val BASE_URL = "http://10.0.2.2:3000/"
+    const val REGISTER_USER = "/api/create-user"
+}\n-------\n
+=== workspace/DELETE_ME.txt ===
+@Composable
+fun AllPoppinsWeightsPreview() {
+    Column(modifier = Modifier.padding(8.dp)) {
+
+        Text(
+            "Poppins Thin",
+            fontFamily = Poppins,
+            fontWeight = FontWeight.Thin,
+            fontSize = 24.sp
+        )
+        Text(
+            "Poppins ExtraLight",
+            fontFamily = Poppins,
+            fontWeight = FontWeight.ExtraLight,
+            fontSize = 24.sp
+        )
+        Text(
+            "Poppins Light",
+            fontFamily = Poppins,
+            fontWeight = FontWeight.Light,
+            fontSize = 24.sp
+        )
+        Text(
+            "Poppins Regular",
+            fontFamily = Poppins,
+            fontWeight = FontWeight.Normal,
+            fontSize = 24.sp
+        )
+        Text(
+            "Poppins Medium",
+            fontFamily = Poppins,
+            fontWeight = FontWeight.Medium,
+            fontSize = 24.sp
+        )
+        Text(
+            "Poppins SemiBold",
+            fontFamily = Poppins,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 24.sp
+        )
+        Text(
+            "Poppins Bold",
+            fontFamily = Poppins,
+            fontWeight = FontWeight.Bold,
+            fontSize = 24.sp
+        )
+        Text(
+            "Poppins ExtraBold",
+            fontFamily = Poppins,
+            fontWeight = FontWeight.ExtraBold,
+            fontSize = 24.sp
+        )
+        Text(
+            "Poppins Black",
+            fontFamily = Poppins,
+            fontWeight = FontWeight.Black,
+            fontSize = 24.sp
+        )
+
+        // Italic examples
+        Text(
+            "Poppins Italic",
+            fontFamily = Poppins,
+            fontWeight = FontWeight.Normal,
+            fontStyle = FontStyle.Italic,
+            fontSize = 24.sp
+        )
+        Text(
+            "Poppins Bold Italic",
+            fontFamily = Poppins,
+            fontWeight = FontWeight.Bold,
+            fontStyle = FontStyle.Italic,
+            fontSize = 24.sp
+        )
+    }
+}
+\n-------\n
+=== workspace/ui/theme/Typography.kt ===
+package com.example.glide.workspace.ui.theme
+
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Typography
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
+import com.example.glide.R
+
+// 1️⃣ Define the Poppins font family with all weights
+val Poppins = FontFamily(
+    Font(R.font.poppins_thin, FontWeight.Thin),
+    Font(R.font.poppins_light, FontWeight.Light),
+    Font(R.font.poppins_regular, FontWeight.Normal),
+    Font(R.font.poppins_medium, FontWeight.Medium),
+    Font(R.font.poppins_semi_bold, FontWeight.SemiBold),
+    Font(R.font.poppins_bold, FontWeight.Bold),
+    Font(R.font.poppins_black, FontWeight.Black)
+)
+
+// 2️⃣ Define typography with Poppins Light as default for all text styles
+val AppTypography = Typography(
+    displayLarge = TextStyle(
+        fontFamily = Poppins,
+        fontWeight = FontWeight.Light,
+        fontSize = 57.sp,
+        lineHeight = 64.sp
+    ),
+    displayMedium = TextStyle(
+        fontFamily = Poppins,
+        fontWeight = FontWeight.Light,
+        fontSize = 45.sp,
+        lineHeight = 52.sp
+    ),
+    displaySmall = TextStyle(
+        fontFamily = Poppins,
+        fontWeight = FontWeight.Light,
+        fontSize = 36.sp,
+        lineHeight = 44.sp
+    ),
+    headlineLarge = TextStyle(
+        fontFamily = Poppins,
+        fontWeight = FontWeight.Light,
+        fontSize = 32.sp,
+        lineHeight = 40.sp
+    ),
+    headlineMedium = TextStyle(
+        fontFamily = Poppins,
+        fontWeight = FontWeight.Light,
+        fontSize = 28.sp,
+        lineHeight = 36.sp
+    ),
+    headlineSmall = TextStyle(
+        fontFamily = Poppins,
+        fontWeight = FontWeight.Light,
+        fontSize = 24.sp,
+        lineHeight = 32.sp
+    ),
+    titleLarge = TextStyle(
+        fontFamily = Poppins,
+        fontWeight = FontWeight.Light,
+        fontSize = 22.sp,
+        lineHeight = 28.sp
+    ),
+    titleMedium = TextStyle(
+        fontFamily = Poppins,
+        fontWeight = FontWeight.Light,
+        fontSize = 16.sp,
+        lineHeight = 24.sp
+    ),
+    titleSmall = TextStyle(
+        fontFamily = Poppins,
+        fontWeight = FontWeight.Light,
+        fontSize = 14.sp,
+        lineHeight = 20.sp
+    ),
+    bodyLarge = TextStyle(
+        fontFamily = Poppins,
+        fontWeight = FontWeight.Light,
+        fontSize = 16.sp,
+        lineHeight = 24.sp
+    ),
+    bodyMedium = TextStyle(
+        fontFamily = Poppins,
+        fontWeight = FontWeight.Light,
+        fontSize = 14.sp,
+        lineHeight = 20.sp
+    ),
+    bodySmall = TextStyle(
+        fontFamily = Poppins,
+        fontWeight = FontWeight.Light,
+        fontSize = 12.sp,
+        lineHeight = 16.sp
+    ),
+    labelLarge = TextStyle(
+        fontFamily = Poppins,
+        fontWeight = FontWeight.Light,
+        fontSize = 14.sp,
+        lineHeight = 20.sp
+    ),
+    labelMedium = TextStyle(
+        fontFamily = Poppins,
+        fontWeight = FontWeight.Light,
+        fontSize = 12.sp,
+        lineHeight = 16.sp
+    ),
+    labelSmall = TextStyle(
+        fontFamily = Poppins,
+        fontWeight = FontWeight.Light,
+        fontSize = 11.sp,
+        lineHeight = 16.sp
+    )
+)
+
+@Composable
+fun GlideTheme(content: @Composable () -> Unit) {
+    MaterialTheme(
+//        colorScheme = LightColorScheme, // or your own scheme
+        typography = AppTypography, // ✅ apply Poppins Light globally
+        content = content
+    )
+}\n-------\n
+=== workspace/welcome/presentation/screens/Welcome.kt ===
+package com.example.glide.workspace.welcome.presentation.screens
+
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.example.glide.R
+import com.example.glide.workspace.ui.theme.Poppins
+
+//@Preview
+@Composable
+fun Welcome(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier.background(Color.White)
+            .fillMaxHeight()
+            .safeDrawingPadding()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxHeight(),
+            verticalArrangement = Arrangement.SpaceBetween,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // Image takes half the height
+            Image(
+                painter = painterResource(id = R.drawable.welcome_screen),
+                contentDescription = "Welcome Image",
+                contentScale = ContentScale.Fit,
+                modifier = Modifier
+                    .fillMaxHeight(0.5f)
+            )
+
+            // Row takes half the height
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight()
+                    .padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight(),
+                    verticalArrangement = Arrangement.SpaceBetween,
+                    horizontalAlignment = Alignment.End   // <-- aligns children to right
+                ) {
+                    Text(
+                        text = "Hello and welcome!",
+                        fontFamily = Poppins,
+                        fontWeight = FontWeight.Normal,
+                        fontSize = 40.sp,
+                        letterSpacing = 1.8.sp,
+                        lineHeight = 36.sp,
+                        textAlign = TextAlign.Start,  // <-- text inside also aligns to right
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .fillMaxHeight(0.5f)
+                            .padding(end = 8.dp)
+                    )
+                    Text(
+                        text = "This is your space to\n" +
+                                "connect and build\n communities together..",
+                        fontFamily = Poppins,
+                        fontWeight = FontWeight.Normal,
+                        fontSize = 24.sp,
+                        letterSpacing = 1.5.sp,
+                        lineHeight = 32.sp,
+                        textAlign = TextAlign.End,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .fillMaxHeight(1f)
+                            .padding(end = 8.dp)
+                    )
+                }
+
+            }
+        }
+    }
+}\n-------\n

@@ -68,8 +68,8 @@ fun Welcome(modifier: Modifier = Modifier) {
                         fontFamily = Poppins,
                         fontWeight = FontWeight.Normal,
                         fontSize = 40.sp,
-                        letterSpacing = 1.5.sp,
-                        lineHeight = 32.sp,
+                        letterSpacing = 1.8.sp,
+                        lineHeight = 36.sp,
                         textAlign = TextAlign.Start,  // <-- text inside also aligns to right
                         modifier = Modifier
                             .fillMaxWidth()

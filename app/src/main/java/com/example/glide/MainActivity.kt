@@ -11,9 +11,18 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import com.example.glide.workspace.auth.presentation.screen.SignUpScreen
+import com.example.glide.workspace.auth.presentation.screen.VerifyOtpScreen
+import com.example.glide.workspace.auth.presentation.viewmodel.SignUpViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import com.example.glide.workspace.ui.theme.GlideTheme
 import com.example.glide.workspace.welcome.presentation.screens.Welcome
@@ -41,10 +50,41 @@ class MainActivity : ComponentActivity() {
                             .padding(16.dp)
                     ) {
                         // Your content
-                        Welcome()
+//                        Welcome()
+                        val navController = rememberNavController()
+                        AppNavGraph(navController)
                     }
                 }
             }
+        }
+    }
+}
+
+
+object Routes {
+    const val WELCOME = "welcome"
+    const val SIGN_UP = "sign_up"
+    const val VERIFY_OTP = "verify_otp"
+}
+
+@Composable
+fun AppNavGraph(navController: NavHostController) {
+    NavHost(
+        navController = navController,
+        startDestination = Routes.SIGN_UP // You can change this later
+    ) {
+        composable(Routes.WELCOME) {
+            Welcome()
+        }
+
+        composable(Routes.VERIFY_OTP) {
+            VerifyOtpScreen()
+        }
+
+
+        composable(Routes.SIGN_UP) {
+            val viewModel: SignUpViewModel = hiltViewModel()
+            SignUpScreen(navController, viewModel = viewModel)
         }
     }
 }
