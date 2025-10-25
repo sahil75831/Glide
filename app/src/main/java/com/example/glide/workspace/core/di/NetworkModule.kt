@@ -1,7 +1,7 @@
-package com.example.glide.workspace.auth.di
+package com.example.glide.workspace.core.di
 
 import com.example.glide.workspace.auth.data.remote.api.AuthApi
-import com.example.glide.workspace.core.utils.ApiEndpoints
+import com.example.glide.workspace.core.ApiEndpoints
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn

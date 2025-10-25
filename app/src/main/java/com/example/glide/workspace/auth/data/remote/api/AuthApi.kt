@@ -1,12 +1,13 @@
 package com.example.glide.workspace.auth.data.remote.api
 
-import com.example.glide.workspace.auth.data.remote.dto.AuthRequest
-import com.example.glide.workspace.auth.data.remote.dto.AuthResponse
-import com.example.glide.workspace.core.utils.ApiEndpoints
+import com.example.glide.workspace.auth.data.remote.dto.SignUpRequestDTO
+import com.example.glide.workspace.auth.data.remote.dto.SignUpResponseDTO
+import com.example.glide.workspace.core.ApiEndpoints
+import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.POST
 
 interface AuthApi {
-    @POST(ApiEndpoints.REGISTER_USER)
-    suspend fun signup(@Body() authRequest: AuthRequest): AuthResponse
+    @POST(ApiEndpoints.SIGN_UP_USER)
+    suspend fun signUp(@Body() signUpRequest: SignUpRequestDTO): Response<SignUpResponseDTO>
 }
