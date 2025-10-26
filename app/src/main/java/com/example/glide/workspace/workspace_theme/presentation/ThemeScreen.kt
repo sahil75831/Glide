@@ -172,98 +172,11 @@ fun getSurfaceColorForTheme(theme: Theme): Color {
 
 
 @Composable
-fun WorkspaceTheme(
-    currentTheme: Theme,
-    content: @Composable () -> Unit
-) {
-    val colorScheme = when (currentTheme) {
-        Theme.Minimalist -> lightColorScheme(
-            primary = Color(0xFF6200EE),
-            secondary = Color(0xFF03DAC5),
-            background = Color(0xFFFFFFFF),
-            surface = Color(0xFFF5F5F5),
-            onBackground = Color.Red,
-            onSurface = Color(0xFF000000)
-        )
-
-        Theme.CyberNeon -> lightColorScheme(
-            primary = Color(0xFF00FF88),
-            secondary = Color(0xFF00BFFF),
-            background = Color(0xFF000000),
-            surface = Color(0xFF1A1A1A),
-            onBackground = Color(0xFFFFFFFF),
-            onSurface = Color(0xFFFFFFFF)
-        )
-
-        Theme.SolarFlare -> lightColorScheme(
-            primary = Color(0xFFFF6B35),
-            secondary = Color(0xFFFFD700),
-            background = Color(0xFFFFF8DC),
-            surface = Color(0xFFFFE4B5),
-            onBackground = Color(0xFF000000),
-            onSurface = Color(0xFF000000)
-        )
-
-        Theme.ForestWhisper -> lightColorScheme(
-            primary = Color(0xFF2E8B57),
-            secondary = Color(0xFF90EE90),
-            background = Color(0xFFF5F5DC),
-            surface = Color(0xFFDEB887),
-            onBackground = Color(0xFF000000),
-            onSurface = Color(0xFF000000)
-        )
-
-        Theme.ArcticFrost -> lightColorScheme(
-            primary = Color(0xFF87CEEB),
-            secondary = Color(0xFFE0FFFF),
-            background = Color(0xFFF0F8FF),
-            surface = Color(0xFFB0E0E6),
-            onBackground = Color(0xFF000000),
-            onSurface = Color(0xFF000000)
-        )
-
-        Theme.RoyalVelvet -> lightColorScheme(
-            primary = Color(0xFF8A2BE2),
-            secondary = Color(0xFFDA70D6),
-            background = Color(0xFFF8F8FF),
-            surface = Color(0xFFD8BFD8),
-            onBackground = Color(0xFF000000),
-            onSurface = Color(0xFF000000)
-        )
-
-        Theme.SunsetDunes -> lightColorScheme(
-            primary = Color(0xFFFF8C00),
-            secondary = Color(0xFFFFD700),
-            background = Color(0xFFFFF5EE),
-            surface = Color(0xFFFFE4C4),
-            onBackground = Color(0xFF000000),
-            onSurface = Color(0xFF000000)
-        )
-
-        Theme.MidnightSapphire -> lightColorScheme(
-            primary = Color(0xFF191970),
-            secondary = Color(0xFF4169E1),
-            background = Color(0xFF000033),
-            surface = Color(0xFF000066),
-            onBackground = Color(0xFFFFFFFF),
-            onSurface = Color(0xFFFFFFFF)
-        )
-    }
-
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = MaterialTheme.typography,
-        content = content
-    )
-}
-
-
-@Composable
 fun TestThemeBox() {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background), // theme background
+            .background(MaterialTheme.colorScheme.primary), // theme background
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {

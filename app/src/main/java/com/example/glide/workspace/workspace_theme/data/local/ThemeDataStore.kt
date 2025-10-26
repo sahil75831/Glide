@@ -19,9 +19,7 @@ class ThemeDataStore(private val context: Context) {
     }
     // Flow to observe the theme changes
     val themeFlow: Flow<String?> = context.appDataStore.data
-        .map {prefs ->
-        val theme = prefs[themeKey]
-        theme
+        .map {prefs -> prefs[themeKey]
     }
 
     // Function to save the theme

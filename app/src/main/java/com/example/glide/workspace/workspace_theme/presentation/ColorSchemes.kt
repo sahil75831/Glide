@@ -6,14 +6,14 @@ import androidx.compose.ui.graphics.Color
 
 // Minimalist (Default)
 val MinimalistLight = lightColorScheme(
-    primary = Color(0xFF2196F3),
+    primary = Color.Blue,
     onPrimary = Color.White,
     background = Color(0xFFFFFFFF),
     onBackground = Color(0xFF000000)
 )
 
 val MinimalistDark = darkColorScheme(
-    primary = Color(0xFF90CAF9),
+    primary = Color.Green,
     onPrimary = Color.Black,
     background = Color(0xFF121212),
     onBackground = Color(0xFFE0E0E0)
@@ -159,7 +159,7 @@ val SunsetDunesDark = darkColorScheme(
 
 // MidnightSapphire
 val MidnightSapphireLight = lightColorScheme(
-    primary = Color(0xFF1976D2),
+    primary = Color.Yellow,
     secondary = Color(0xFF42A5F5),
     tertiary = Color(0xFF0D47A1),
     onPrimary = Color.White,
@@ -170,7 +170,7 @@ val MidnightSapphireLight = lightColorScheme(
 )
 
 val MidnightSapphireDark = darkColorScheme(
-    primary = Color(0xFF42A5F5),
+    primary = Color.DarkGray,
     secondary = Color(0xFF90CAF9),
     tertiary = Color(0xFF1976D2),
     onPrimary = Color.Black,
