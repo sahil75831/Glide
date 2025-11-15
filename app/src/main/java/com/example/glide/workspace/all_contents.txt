@@ -1,0 +1,325 @@
+=== auth/data/mappers/AuthMappers.kt ===
+package com.example.glide.workspace.auth.data.mappers
+
+import com.example.glide.workspace.auth.data.remote.dto.SignUpRequestDTO
+import com.example.glide.workspace.auth.data.remote.dto.SignUpResponseDTO
+import com.example.glide.workspace.auth.domain.models.SignUpResult
+import com.example.glide.workspace.auth.domain.models.User
+
+// DATA  LAYER TO DOMAIN LAYER
+fun SignUpRequestDTO.toUser(): User {
+    return User(
+        name = name,
+        phone = phone,
+        email = email,
+        password = password,
+        governmentId = governmentId,
+        governmentIdType = governmentIdType,
+        age = age,
+        gender = gender,
+        address = address
+    )
+}
+
+// DATA  LAYER TO DOMAIN LAYER
+fun SignUpResponseDTO.toSignUpResult(): SignUpResult {
+    return SignUpResult(
+        success = success,
+        message = message
+    )
+}
+
+// DOMAIN LAYER TO DATA LAYER
+fun User.toSignUpRequestDTO(): SignUpRequestDTO {
+    return SignUpRequestDTO(
+        name = name,
+        phone = phone,
+        email = email,
+        password = password,
+        governmentId = governmentId,
+        governmentIdType = governmentIdType,
+        age = age,
+        gender = gender,
+        address = address
+    )
+}
+=== auth/data/remote/api/AuthApi.kt ===
+package com.example.glide.workspace.auth.data.remote.api
+
+import com.example.glide.workspace.auth.data.remote.dto.SignUpRequestDTO
+import com.example.glide.workspace.auth.data.remote.dto.SignUpResponseDTO
+import com.example.glide.workspace.core.ApiEndpoints
+import retrofit2.Response
+import retrofit2.http.Body
+import retrofit2.http.POST
+
+interface AuthApi {
+    @POST(ApiEndpoints.SIGN_UP_USER)
+    suspend fun signUp(@Body() signUpRequest: SignUpRequestDTO): Response<SignUpResponseDTO>
+}
+=== auth/data/remote/dto/SignUpRequestDTO.kt ===
+package com.example.glide.workspace.auth.data.remote.dto
+
+import com.google.gson.annotations.SerializedName
+
+data class SignUpRequestDTO(
+    @SerializedName("name") val name: String,
+    @SerializedName("phone") val phone: String,
+    @SerializedName("email") val email: String,
+    @SerializedName("password") val password: String,
+    @SerializedName("governmentId") val governmentId: String,
+    @SerializedName("governmentIdType") val governmentIdType: String,
+    @SerializedName("age") val age: Int,
+    @SerializedName("gender") val gender: String,
+    @SerializedName("address") val address: String
+)
+=== auth/data/remote/dto/SignUpResponseDTO.kt ===
+package com.example.glide.workspace.auth.data.remote.dto
+
+import com.google.gson.annotations.SerializedName
+
+data class SignUpResponseDTO(
+    @SerializedName("success") val success: Boolean,
+    @SerializedName("message") val message: String
+)
+
+=== auth/data/repository/AuthRepositoryImplementation.kt ===
+package com.example.glide.workspace.auth.data.repository
+
+import com.example.glide.workspace.auth.data.mappers.toSignUpRequestDTO
+import com.example.glide.workspace.auth.data.mappers.toSignUpResult
+import com.example.glide.workspace.auth.data.remote.api.AuthApi
+import com.example.glide.workspace.auth.domain.models.SignUpResult
+import com.example.glide.workspace.auth.domain.models.User
+import com.example.glide.workspace.auth.domain.repository.AuthRepository
+import javax.inject.Inject
+
+class AuthRepositoryImpl @Inject constructor(
+    private val api: AuthApi
+) : AuthRepository {
+
+    override suspend fun signUp(user: User): SignUpResult {
+        return try {
+            // Convert Domain User → DTO
+            val requestDTO = user.toSignUpRequestDTO()
+
+            // Call the API
+            val response = api.signUp(requestDTO)
+
+            // Network-level check (HTTP 2xx)
+            if (response.isSuccessful) {
+                val body = response.body()
+                if (body != null) {
+                    // API-level check (success field in JSON)
+                    if (body.success) {
+                        // Success → map DTO to Domain || Mapper
+                        body.toSignUpResult()
+                    } else {
+                        // API returned success = false
+                        SignUpResult(false, body.message)
+                    }
+                } else {
+                    // Body is null, unexpected
+                    SignUpResult(false, "Empty response from server")
+                }
+            } else {
+                // Network failure (HTTP 4xx/5xx)
+                // SignUpResult(false, "Network error: ${response.code()} ${response.message()}")
+                SignUpResult(false, "Network error")
+            }
+        } catch (e: Exception) {
+            // Exception (timeout, serialization, etc.)
+            // SignUpResult(false, "Unexpected error: ${e.localizedMessage ?: e.message}")
+            SignUpResult(false, "Unexpected error")
+        }
+    }
+}
+
+=== auth/di/AuthModule.kt ===
+package com.example.glide.workspace.auth.di
+
+import com.example.glide.workspace.auth.data.repository.AuthRepositoryImpl
+import com.example.glide.workspace.auth.domain.repository.AuthRepository
+import dagger.Binds
+import dagger.Module
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+import javax.inject.Singleton
+
+@Module
+@InstallIn(SingletonComponent::class)
+abstract class AuthModule {
+
+    @Binds
+    @Singleton
+    abstract fun bindAuthRepository( authRepositoryImpl: AuthRepositoryImpl ) : AuthRepository
+}
+=== auth/di/UseCaseModule.kt ===
+package com.example.glide.workspace.auth.di
+
+import com.example.glide.workspace.auth.domain.repository.AuthRepository
+import com.example.glide.workspace.auth.domain.usecases.SignUpUseCase
+import dagger.Module
+import dagger.Provides
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+import javax.inject.Singleton
+
+@Module
+@InstallIn(SingletonComponent::class)
+object UseCaseModule {
+
+    @Provides
+    @Singleton
+    fun provideSignUpUseCase(
+        authRepository: AuthRepository
+    ): SignUpUseCase {
+        return SignUpUseCase(authRepository)
+    }
+}
+=== auth/domain/models/SignUpResult.kt ===
+package com.example.glide.workspace.auth.domain.models
+
+data class SignUpResult(
+    val success: Boolean,
+    val message: String
+)
+
+=== auth/domain/models/User.kt ===
+package com.example.glide.workspace.auth.domain.models
+
+data class User(
+    val name: String,
+    val phone: String,
+    val email: String,
+    val password: String,
+    val governmentId: String,
+    val governmentIdType: String,
+    val age: Int,
+    val gender: String,
+    val address: String
+)
+
+=== auth/domain/repository/AuthRepository.kt ===
+package com.example.glide.workspace.auth.domain.repository
+
+import com.example.glide.workspace.auth.domain.models.SignUpResult
+import com.example.glide.workspace.auth.domain.models.User
+
+interface AuthRepository {
+    suspend fun signUp(user: User): SignUpResult
+}
+=== auth/domain/usecases/SignUpUseCase.kt ===
+package com.example.glide.workspace.auth.domain.usecases
+
+import com.example.glide.workspace.auth.domain.models.SignUpResult
+import com.example.glide.workspace.auth.domain.models.User
+import com.example.glide.workspace.auth.domain.repository.AuthRepository
+
+class SignUpUseCase(
+    private val authRepository: AuthRepository
+) {
+    suspend operator fun invoke(user: User): SignUpResult {
+        // DeStructure user properties
+        val (name, phone, email, password, governmentId, governmentIdType, age, gender, address) = user
+
+        // 1️⃣ Validate inputs
+        if (name.isBlank()) return SignUpResult(false, "Name cannot be empty.")
+        if (governmentIdType.isBlank()) return SignUpResult(false, "GovernmentId Type cannot be empty.")
+        if (gender.isBlank()) return SignUpResult(false, "Gender cannot be empty.")
+        if (address.isBlank()) return SignUpResult(false, "Address cannot be empty.")
+        if (email.isBlank() || !isValidEmail(email)) return SignUpResult(false, "Invalid email format.")
+        if (phone.isBlank() || !isValidPhone(phone)) return SignUpResult(false, "Invalid phone number.")
+        if (password.length < 8) return SignUpResult(false, "Password must be at least 8 characters long.")
+        if (governmentId.isBlank()) return SignUpResult(false, "Government ID is required.")
+        if (age < 18) return SignUpResult(false, "User must be 18 or older.")
+
+        // 2️⃣ Delegate to repository
+        return try {
+            authRepository.signUp(user)
+        } catch (e: Exception) {
+            SignUpResult(false, "Unexpected error: ${e.localizedMessage ?: "Unknown"}")
+        }
+    }
+
+    // ---------------------------
+    // 🔧 Validation Helpers
+    // ---------------------------
+    private fun isValidEmail(email: String): Boolean {
+        return android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()
+    }
+
+    private fun isValidPhone(phone: String): Boolean {
+        return phone.matches(Regex("^[6-9][0-9]{9}$"))
+    }
+}
+
+=== auth/presentation/screens/Register.kt ===
+package com.example.glide.workspace.auth.presentation.screens
+
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.example.glide.workspace.core.components.InputFieldVariant
+import com.example.glide.workspace.core.components.ThemedPrimaryInputField
+import com.example.glide.workspace.ui.theme.AppTheme
+
+@Composable
+fun RegisterUserScreen(
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier.fillMaxSize()) {
+       Column {
+           Text(
+               text = "Register",
+               modifier = modifier
+                   .fillMaxWidth(),
+               fontSize = 32.sp,
+               fontWeight = FontWeight.SemiBold,
+               textAlign = TextAlign.Center,
+               color = MaterialTheme.colorScheme.primary
+           )
+           Text(
+               text = "Hi, Create your account",
+               modifier = modifier
+                   .fillMaxWidth(),
+               fontSize = 16.sp,
+               fontWeight = FontWeight.Normal,
+               fontStyle = FontStyle.Italic,
+               textAlign = TextAlign.Center,
+               color = MaterialTheme.colorScheme.primary
+           )
+       }
+
+        // Content area --main body
+        Column (modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+            ThemedPrimaryInputField(variant = InputFieldVariant.Filled)
+
+        }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun PreviewRegisterUserScreen() {
+    AppTheme {
+        Surface(modifier = Modifier.fillMaxSize()) {
+            RegisterUserScreen()
+        }
+    }
+}

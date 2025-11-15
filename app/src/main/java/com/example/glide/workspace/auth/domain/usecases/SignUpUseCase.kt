@@ -11,7 +11,7 @@ class SignUpUseCase(
         // DeStructure user properties
         val (name, phone, email, password, governmentId, governmentIdType, age, gender, address) = user
 
-        // 1️⃣ Validate inputs
+        // 1 Validate inputs
         if (name.isBlank()) return SignUpResult(false, "Name cannot be empty.")
         if (governmentIdType.isBlank()) return SignUpResult(false, "GovernmentId Type cannot be empty.")
         if (gender.isBlank()) return SignUpResult(false, "Gender cannot be empty.")
@@ -22,7 +22,7 @@ class SignUpUseCase(
         if (governmentId.isBlank()) return SignUpResult(false, "Government ID is required.")
         if (age < 18) return SignUpResult(false, "User must be 18 or older.")
 
-        // 2️⃣ Delegate to repository
+        // 2 Delegate to repository
         return try {
             authRepository.signUp(user)
         } catch (e: Exception) {

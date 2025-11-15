@@ -1,9 +1,8 @@
-// workspace/ui/theme/GlideTheme.kt
 package com.example.glide.workspace.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Typography
+
 import androidx.compose.runtime.Composable
 import com.example.glide.workspace.workspace_theme.domain.models.Theme
 import com.example.glide.workspace.workspace_theme.presentation.*

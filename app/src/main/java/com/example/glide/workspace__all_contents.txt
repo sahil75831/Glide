@@ -1,0 +1,2558 @@
+=== workspace/all_contents.txt ===
+=== auth/data/mappers/AuthMappers.kt ===
+package com.example.glide.workspace.auth.data.mappers
+
+import com.example.glide.workspace.auth.data.remote.dto.SignUpRequestDTO
+import com.example.glide.workspace.auth.data.remote.dto.SignUpResponseDTO
+import com.example.glide.workspace.auth.domain.models.SignUpResult
+import com.example.glide.workspace.auth.domain.models.User
+
+// DATA  LAYER TO DOMAIN LAYER
+fun SignUpRequestDTO.toUser(): User {
+    return User(
+        name = name,
+        phone = phone,
+        email = email,
+        password = password,
+        governmentId = governmentId,
+        governmentIdType = governmentIdType,
+        age = age,
+        gender = gender,
+        address = address
+    )
+}
+
+// DATA  LAYER TO DOMAIN LAYER
+fun SignUpResponseDTO.toSignUpResult(): SignUpResult {
+    return SignUpResult(
+        success = success,
+        message = message
+    )
+}
+
+// DOMAIN LAYER TO DATA LAYER
+fun User.toSignUpRequestDTO(): SignUpRequestDTO {
+    return SignUpRequestDTO(
+        name = name,
+        phone = phone,
+        email = email,
+        password = password,
+        governmentId = governmentId,
+        governmentIdType = governmentIdType,
+        age = age,
+        gender = gender,
+        address = address
+    )
+}
+=== auth/data/remote/api/AuthApi.kt ===
+package com.example.glide.workspace.auth.data.remote.api
+
+import com.example.glide.workspace.auth.data.remote.dto.SignUpRequestDTO
+import com.example.glide.workspace.auth.data.remote.dto.SignUpResponseDTO
+import com.example.glide.workspace.core.ApiEndpoints
+import retrofit2.Response
+import retrofit2.http.Body
+import retrofit2.http.POST
+
+interface AuthApi {
+    @POST(ApiEndpoints.SIGN_UP_USER)
+    suspend fun signUp(@Body() signUpRequest: SignUpRequestDTO): Response<SignUpResponseDTO>
+}
+=== auth/data/remote/dto/SignUpRequestDTO.kt ===
+package com.example.glide.workspace.auth.data.remote.dto
+
+import com.google.gson.annotations.SerializedName
+
+data class SignUpRequestDTO(
+    @SerializedName("name") val name: String,
+    @SerializedName("phone") val phone: String,
+    @SerializedName("email") val email: String,
+    @SerializedName("password") val password: String,
+    @SerializedName("governmentId") val governmentId: String,
+    @SerializedName("governmentIdType") val governmentIdType: String,
+    @SerializedName("age") val age: Int,
+    @SerializedName("gender") val gender: String,
+    @SerializedName("address") val address: String
+)
+=== auth/data/remote/dto/SignUpResponseDTO.kt ===
+package com.example.glide.workspace.auth.data.remote.dto
+
+import com.google.gson.annotations.SerializedName
+
+data class SignUpResponseDTO(
+    @SerializedName("success") val success: Boolean,
+    @SerializedName("message") val message: String
+)
+
+=== auth/data/repository/AuthRepositoryImplementation.kt ===
+package com.example.glide.workspace.auth.data.repository
+
+import com.example.glide.workspace.auth.data.mappers.toSignUpRequestDTO
+import com.example.glide.workspace.auth.data.mappers.toSignUpResult
+import com.example.glide.workspace.auth.data.remote.api.AuthApi
+import com.example.glide.workspace.auth.domain.models.SignUpResult
+import com.example.glide.workspace.auth.domain.models.User
+import com.example.glide.workspace.auth.domain.repository.AuthRepository
+import javax.inject.Inject
+
+class AuthRepositoryImpl @Inject constructor(
+    private val api: AuthApi
+) : AuthRepository {
+
+    override suspend fun signUp(user: User): SignUpResult {
+        return try {
+            // Convert Domain User → DTO
+            val requestDTO = user.toSignUpRequestDTO()
+
+            // Call the API
+            val response = api.signUp(requestDTO)
+
+            // Network-level check (HTTP 2xx)
+            if (response.isSuccessful) {
+                val body = response.body()
+                if (body != null) {
+                    // API-level check (success field in JSON)
+                    if (body.success) {
+                        // Success → map DTO to Domain || Mapper
+                        body.toSignUpResult()
+                    } else {
+                        // API returned success = false
+                        SignUpResult(false, body.message)
+                    }
+                } else {
+                    // Body is null, unexpected
+                    SignUpResult(false, "Empty response from server")
+                }
+            } else {
+                // Network failure (HTTP 4xx/5xx)
+                // SignUpResult(false, "Network error: ${response.code()} ${response.message()}")
+                SignUpResult(false, "Network error")
+            }
+        } catch (e: Exception) {
+            // Exception (timeout, serialization, etc.)
+            // SignUpResult(false, "Unexpected error: ${e.localizedMessage ?: e.message}")
+            SignUpResult(false, "Unexpected error")
+        }
+    }
+}
+
+=== auth/di/AuthModule.kt ===
+package com.example.glide.workspace.auth.di
+
+import com.example.glide.workspace.auth.data.repository.AuthRepositoryImpl
+import com.example.glide.workspace.auth.domain.repository.AuthRepository
+import dagger.Binds
+import dagger.Module
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+import javax.inject.Singleton
+
+@Module
+@InstallIn(SingletonComponent::class)
+abstract class AuthModule {
+
+    @Binds
+    @Singleton
+    abstract fun bindAuthRepository( authRepositoryImpl: AuthRepositoryImpl ) : AuthRepository
+}
+=== auth/di/UseCaseModule.kt ===
+package com.example.glide.workspace.auth.di
+
+import com.example.glide.workspace.auth.domain.repository.AuthRepository
+import com.example.glide.workspace.auth.domain.usecases.SignUpUseCase
+import dagger.Module
+import dagger.Provides
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+import javax.inject.Singleton
+
+@Module
+@InstallIn(SingletonComponent::class)
+object UseCaseModule {
+
+    @Provides
+    @Singleton
+    fun provideSignUpUseCase(
+        authRepository: AuthRepository
+    ): SignUpUseCase {
+        return SignUpUseCase(authRepository)
+    }
+}
+=== auth/domain/models/SignUpResult.kt ===
+package com.example.glide.workspace.auth.domain.models
+
+data class SignUpResult(
+    val success: Boolean,
+    val message: String
+)
+
+=== auth/domain/models/User.kt ===
+package com.example.glide.workspace.auth.domain.models
+
+data class User(
+    val name: String,
+    val phone: String,
+    val email: String,
+    val password: String,
+    val governmentId: String,
+    val governmentIdType: String,
+    val age: Int,
+    val gender: String,
+    val address: String
+)
+
+=== auth/domain/repository/AuthRepository.kt ===
+package com.example.glide.workspace.auth.domain.repository
+
+import com.example.glide.workspace.auth.domain.models.SignUpResult
+import com.example.glide.workspace.auth.domain.models.User
+
+interface AuthRepository {
+    suspend fun signUp(user: User): SignUpResult
+}
+=== auth/domain/usecases/SignUpUseCase.kt ===
+package com.example.glide.workspace.auth.domain.usecases
+
+import com.example.glide.workspace.auth.domain.models.SignUpResult
+import com.example.glide.workspace.auth.domain.models.User
+import com.example.glide.workspace.auth.domain.repository.AuthRepository
+
+class SignUpUseCase(
+    private val authRepository: AuthRepository
+) {
+    suspend operator fun invoke(user: User): SignUpResult {
+        // DeStructure user properties
+        val (name, phone, email, password, governmentId, governmentIdType, age, gender, address) = user
+
+        // 1️⃣ Validate inputs
+        if (name.isBlank()) return SignUpResult(false, "Name cannot be empty.")
+        if (governmentIdType.isBlank()) return SignUpResult(false, "GovernmentId Type cannot be empty.")
+        if (gender.isBlank()) return SignUpResult(false, "Gender cannot be empty.")
+        if (address.isBlank()) return SignUpResult(false, "Address cannot be empty.")
+        if (email.isBlank() || !isValidEmail(email)) return SignUpResult(false, "Invalid email format.")
+        if (phone.isBlank() || !isValidPhone(phone)) return SignUpResult(false, "Invalid phone number.")
+        if (password.length < 8) return SignUpResult(false, "Password must be at least 8 characters long.")
+        if (governmentId.isBlank()) return SignUpResult(false, "Government ID is required.")
+        if (age < 18) return SignUpResult(false, "User must be 18 or older.")
+
+        // 2️⃣ Delegate to repository
+        return try {
+            authRepository.signUp(user)
+        } catch (e: Exception) {
+            SignUpResult(false, "Unexpected error: ${e.localizedMessage ?: "Unknown"}")
+        }
+    }
+
+    // ---------------------------
+    // 🔧 Validation Helpers
+    // ---------------------------
+    private fun isValidEmail(email: String): Boolean {
+        return android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()
+    }
+
+    private fun isValidPhone(phone: String): Boolean {
+        return phone.matches(Regex("^[6-9][0-9]{9}$"))
+    }
+}
+
+=== auth/presentation/screens/Register.kt ===
+package com.example.glide.workspace.auth.presentation.screens
+
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.example.glide.workspace.core.components.InputFieldVariant
+import com.example.glide.workspace.core.components.ThemedPrimaryInputField
+import com.example.glide.workspace.ui.theme.AppTheme
+
+@Composable
+fun RegisterUserScreen(
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier.fillMaxSize()) {
+       Column {
+           Text(
+               text = "Register",
+               modifier = modifier
+                   .fillMaxWidth(),
+               fontSize = 32.sp,
+               fontWeight = FontWeight.SemiBold,
+               textAlign = TextAlign.Center,
+               color = MaterialTheme.colorScheme.primary
+           )
+           Text(
+               text = "Hi, Create your account",
+               modifier = modifier
+                   .fillMaxWidth(),
+               fontSize = 16.sp,
+               fontWeight = FontWeight.Normal,
+               fontStyle = FontStyle.Italic,
+               textAlign = TextAlign.Center,
+               color = MaterialTheme.colorScheme.primary
+           )
+       }
+
+        // Content area --main body
+        Column (modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+            ThemedPrimaryInputField(variant = InputFieldVariant.Filled)
+
+        }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun PreviewRegisterUserScreen() {
+    AppTheme {
+        Surface(modifier = Modifier.fillMaxSize()) {
+            RegisterUserScreen()
+        }
+    }
+}
+
+=== workspace/all_workspace_contents_code ===
+=== workspace_theme/data/local/ThemeDataStore.kt ===
+package com.example.glide.workspace.workspace_theme.data.local
+
+import android.content.Context
+import android.util.Log
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
+import com.example.glide.workspace.core.utils.AppConstants
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+import javax.inject.Singleton
+
+val Context.appDataStore by preferencesDataStore(AppConstants.DATA_STORE_NAME)
+
+@Singleton
+class ThemeDataStore(private val context: Context) {
+    companion object {
+        val themeKey = stringPreferencesKey(AppConstants.THEME_KEY)
+    }
+    // Flow to observe the theme changes
+    val themeFlow: Flow<String?> = context.appDataStore.data
+        .map {prefs ->
+        val theme = prefs[themeKey]
+        theme
+    }
+
+    // Function to save the theme
+    suspend fun saveTheme(themeName: String) {
+        context.appDataStore.edit {
+            prefs -> prefs[themeKey] = themeName
+            Log.d("ThemeDataStore", "Saved theme $themeName")
+        }
+    }
+}=== -e-n-d- ===
+=== workspace_theme/data/repository/ThemeRepositoryImplementation.kt ===
+package com.example.glide.workspace.workspace_theme.data.repository
+
+import com.example.glide.workspace.workspace_theme.data.local.ThemeDataStore
+import com.example.glide.workspace.workspace_theme.domain.models.Theme
+import com.example.glide.workspace.workspace_theme.domain.repository.ThemeRepository
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+import javax.inject.Inject
+
+class ThemeRepositoryImplementation @Inject constructor(
+    private val themeDataStore: ThemeDataStore
+): ThemeRepository {
+    override fun getThemeFlow(): Flow<Theme> {
+        return themeDataStore.themeFlow.map { Theme.fromName(it) }
+    }
+
+    override suspend fun saveTheme(theme: Theme) {
+        themeDataStore.saveTheme(theme.displayName)
+    }
+}=== -e-n-d- ===
+=== workspace_theme/di/ThemeModule.kt ===
+package com.example.glide.workspace.workspace_theme.di
+
+import android.content.Context
+import com.example.glide.workspace.workspace_theme.data.local.ThemeDataStore
+import com.example.glide.workspace.workspace_theme.domain.repository.ThemeRepository
+import com.example.glide.workspace.workspace_theme.domain.usecases.GetThemeUseCase
+import com.example.glide.workspace.workspace_theme.domain.usecases.SaveThemeUseCase
+import dagger.Module
+import dagger.Provides
+import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
+import dagger.hilt.components.SingletonComponent
+import javax.inject.Singleton
+
+@Module
+@InstallIn(SingletonComponent::class)
+object ThemeModule {
+    @Provides
+    @Singleton
+    fun provideThemeDataSource(@ApplicationContext context: Context): ThemeDataStore {
+        return ThemeDataStore(context)
+    }
+
+    @Provides
+    @Singleton
+    fun provideGetThemeUseCase(repository: ThemeRepository): GetThemeUseCase {
+        return GetThemeUseCase(repository)
+    }
+
+    @Provides
+    @Singleton
+    fun provideSaveThemeUseCase(repository: ThemeRepository): SaveThemeUseCase {
+        return SaveThemeUseCase(repository)
+    }
+}=== -e-n-d- ===
+=== workspace_theme/di/ThemeRepositoryModule.kt ===
+package com.example.glide.workspace.workspace_theme.di
+
+import com.example.glide.workspace.workspace_theme.data.repository.ThemeRepositoryImplementation
+import com.example.glide.workspace.workspace_theme.domain.repository.ThemeRepository
+import dagger.Binds
+import dagger.Module
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+import javax.inject.Singleton
+
+@Module
+@InstallIn(SingletonComponent::class)
+abstract class ThemeRepositoryModule {
+
+    @Binds
+    @Singleton
+    abstract fun bindsThemeRepository(themeRepositoryImplementation: ThemeRepositoryImplementation): ThemeRepository
+}=== -e-n-d- ===
+=== workspace_theme/domain/models/Theme.kt ===
+package com.example.glide.workspace.workspace_theme.domain.models
+
+enum class Theme(val displayName: String) {
+    Minimalist("Minimalist"),
+    CyberNeon("Cyber Neon"),
+    SolarFlare("Solar Flare"),
+    ForestWhisper("Forest Whisper"),
+    ArcticFrost("Arctic Frost"),
+    RoyalVelvet("Royal Velvet"),
+    SunsetDunes("Sunset Dunes"),
+    MidnightSapphire("Midnight Sapphire");
+
+    companion object {
+        fun fromName(name: String?): Theme = entries.firstOrNull { it -> it.displayName == name } ?: Minimalist
+    }
+}=== -e-n-d- ===
+=== workspace_theme/domain/repository/ThemeRepository.kt ===
+package com.example.glide.workspace.workspace_theme.domain.repository
+
+import com.example.glide.workspace.workspace_theme.domain.models.Theme
+import kotlinx.coroutines.flow.Flow
+
+interface ThemeRepository {
+    fun getThemeFlow(): Flow<Theme>
+    suspend fun saveTheme(theme: Theme)
+}=== -e-n-d- ===
+=== workspace_theme/domain/usecases/GetThemeUseCase.kt ===
+package com.example.glide.workspace.workspace_theme.domain.usecases
+
+import com.example.glide.workspace.workspace_theme.domain.models.Theme
+import com.example.glide.workspace.workspace_theme.domain.repository.ThemeRepository
+import kotlinx.coroutines.flow.Flow
+
+class GetThemeUseCase(private val themeRepository: ThemeRepository) {
+    operator fun invoke(): Flow<Theme> = themeRepository.getThemeFlow()
+}=== -e-n-d- ===
+=== workspace_theme/domain/usecases/SaveThemeUseCase.kt ===
+package com.example.glide.workspace.workspace_theme.domain.usecases
+
+import com.example.glide.workspace.workspace_theme.domain.models.Theme
+import com.example.glide.workspace.workspace_theme.domain.repository.ThemeRepository
+
+class SaveThemeUseCase(private val themeRepository: ThemeRepository) {
+    suspend operator fun invoke(theme: Theme) = themeRepository.saveTheme(theme)
+}=== -e-n-d- ===
+=== workspace_theme/presentation/ColorSchemes.kt ===
+package com.example.glide.workspace.workspace_theme.presentation
+
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
+import androidx.compose.ui.graphics.Color
+
+// Minimalist (Default)
+val MinimalistLight = lightColorScheme(
+    primary = Color(0xFF2196F3),
+    onPrimary = Color.White,
+    background = Color(0xFFFFFFFF),
+    onBackground = Color(0xFF000000)
+)
+
+val MinimalistDark = darkColorScheme(
+    primary = Color(0xFF90CAF9),
+    onPrimary = Color.Black,
+    background = Color(0xFF121212),
+    onBackground = Color(0xFFE0E0E0)
+)
+
+// CyberNeon
+val CyberNeonLight = lightColorScheme(
+        .............
+        .............
+    onBackground = Color(0xFF261914)
+)
+
+val SunsetDunesDark = darkColorScheme(
+    primary = Color(0xFFFFAB91),
+    secondary = Color(0xFFFFCC80),
+    tertiary = Color(0xFFFF7043),
+    onPrimary = Color.Black,
+        .............
+        .............
+    onTertiary = Color.White,
+    background = Color(0xFF0A1120),
+    onBackground = Color(0xFFE3F2FD)
+)=== -e-n-d- ===
+=== workspace_theme/presentation/ThemeScreen.kt ===
+package com.example.glide.workspace.workspace_theme.presentation
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Card
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.glide.workspace.workspace_theme.domain.models.Theme
+
+@Composable
+fun ThemeScreen(
+    viewModel: ThemeViewModel = hiltViewModel()
+) {
+    val currentTheme by viewModel.theme.collectAsState()
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+            .verticalScroll(rememberScrollState())
+    ) {
+        // Current Theme Header
+        Text(
+            text = "Current Theme: ${currentTheme.displayName}",
+            style = MaterialTheme.typography.headlineMedium,
+            modifier = Modifier.padding(bottom = 16.dp)
+        )
+
+        // Theme Selection Grid
+        Text(
+            text = "Select Theme:",
+            style = MaterialTheme.typography.headlineSmall,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+
+        // Create rows for all themes
+        Theme.entries.forEach { theme ->
+            ThemeRow(
+                theme = theme,
+                isSelected = theme == currentTheme,
+                onThemeSelected = { viewModel.changeTheme(theme) }
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+        }
+    }
+}
+
+@Composable
+fun ThemeRow(
+    theme: Theme,
+    isSelected: Boolean,
+    onThemeSelected: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        onClick = onThemeSelected
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            // Theme Name
+            Text(
+                text = theme.displayName,
+                style = MaterialTheme.typography.bodyLarge
+            )
+
+            // Color Circles
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // You would need to get actual colors for each theme
+                // For now, using placeholder colors based on theme name hash
+
+                // Primary Color Circle
+                ColorCircle(color = getPrimaryColorForTheme(theme))
+
+                // Secondary Color Circle
+                ColorCircle(color = getSecondaryColorForTheme(theme))
+
+                // Background Color Circle
+                ColorCircle(color = getBackgroundColorForTheme(theme))
+
+                // Surface Color Circle
+                ColorCircle(color = getSurfaceColorForTheme(theme))
+            }
+        }
+    }
+}
+
+@Composable
+fun ColorCircle(color: androidx.compose.ui.graphics.Color) {
+    Box(
+        modifier = Modifier
+            .size(32.dp)
+            .clip(CircleShape)
+            .background(color)
+    )
+}
+
+// Placeholder functions - you'll need to replace these with actual theme colors
+// from your theme system
+
+fun getPrimaryColorForTheme(theme: Theme): androidx.compose.ui.graphics.Color {
+    return when (theme) {
+        Theme.Minimalist -> androidx.compose.ui.graphics.Color(0xFF6200EE)
+        Theme.CyberNeon -> androidx.compose.ui.graphics.Color(0xFF00FF88)
+        Theme.SolarFlare -> androidx.compose.ui.graphics.Color(0xFFFF6B35)
+        Theme.ForestWhisper -> androidx.compose.ui.graphics.Color(0xFF2E8B57)
+        Theme.ArcticFrost -> androidx.compose.ui.graphics.Color(0xFF87CEEB)
+        Theme.RoyalVelvet -> androidx.compose.ui.graphics.Color(0xFF8A2BE2)
+        Theme.SunsetDunes -> androidx.compose.ui.graphics.Color(0xFFFF8C00)
+        Theme.MidnightSapphire -> androidx.compose.ui.graphics.Color(0xFF191970)
+    }
+}
+
+fun getSecondaryColorForTheme(theme: Theme): androidx.compose.ui.graphics.Color {
+    return when (theme) {
+        Theme.Minimalist -> androidx.compose.ui.graphics.Color(0xFF03DAC5)
+        Theme.CyberNeon -> androidx.compose.ui.graphics.Color(0xFF00BFFF)
+        Theme.SolarFlare -> androidx.compose.ui.graphics.Color(0xFFFFD700)
+        Theme.ForestWhisper -> androidx.compose.ui.graphics.Color(0xFF90EE90)
+        Theme.ArcticFrost -> androidx.compose.ui.graphics.Color(0xFFE0FFFF)
+        Theme.RoyalVelvet -> androidx.compose.ui.graphics.Color(0xFFDA70D6)
+        Theme.SunsetDunes -> androidx.compose.ui.graphics.Color(0xFFFFD700)
+        Theme.MidnightSapphire -> androidx.compose.ui.graphics.Color(0xFF4169E1)
+    }
+}
+
+fun getBackgroundColorForTheme(theme: Theme): androidx.compose.ui.graphics.Color {
+    return when (theme) {
+        Theme.Minimalist -> androidx.compose.ui.graphics.Color(0xFFFFFFFF)
+        Theme.CyberNeon -> androidx.compose.ui.graphics.Color(0xFF000000)
+        Theme.SolarFlare -> androidx.compose.ui.graphics.Color(0xFFFFF8DC)
+        Theme.ForestWhisper -> androidx.compose.ui.graphics.Color(0xFFF5F5DC)
+        Theme.ArcticFrost -> androidx.compose.ui.graphics.Color(0xFFF0F8FF)
+        Theme.RoyalVelvet -> androidx.compose.ui.graphics.Color(0xFFF8F8FF)
+        Theme.SunsetDunes -> androidx.compose.ui.graphics.Color(0xFFFFF5EE)
+        Theme.MidnightSapphire -> androidx.compose.ui.graphics.Color(0xFF000080)
+    }
+}
+
+fun getSurfaceColorForTheme(theme: Theme): androidx.compose.ui.graphics.Color {
+    return when (theme) {
+        Theme.Minimalist -> androidx.compose.ui.graphics.Color(0xFFF5F5F5)
+        Theme.CyberNeon -> androidx.compose.ui.graphics.Color(0xFF1A1A1A)
+        Theme.SolarFlare -> androidx.compose.ui.graphics.Color(0xFFFFE4B5)
+        Theme.ForestWhisper -> androidx.compose.ui.graphics.Color(0xFFDEB887)
+        Theme.ArcticFrost -> androidx.compose.ui.graphics.Color(0xFFB0E0E6)
+        Theme.RoyalVelvet -> androidx.compose.ui.graphics.Color(0xFFD8BFD8)
+        Theme.SunsetDunes -> androidx.compose.ui.graphics.Color(0xFFFFE4C4)
+        Theme.MidnightSapphire -> androidx.compose.ui.graphics.Color(0xFF0000CD)
+    }
+}=== -e-n-d- ===
+=== workspace_theme/presentation/ThemeViewModel.kt ===
+package com.example.glide.workspace.workspace_theme.presentation
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.glide.workspace.workspace_theme.domain.models.Theme
+import com.example.glide.workspace.workspace_theme.domain.usecases.GetThemeUseCase
+import com.example.glide.workspace.workspace_theme.domain.usecases.SaveThemeUseCase
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+@HiltViewModel()
+class ThemeViewModel @Inject constructor(
+    private val getThemeUseCase: GetThemeUseCase,
+    private val saveThemeUseCase: SaveThemeUseCase
+): ViewModel() {
+    val theme = getThemeUseCase().stateIn(viewModelScope, SharingStarted.Eagerly, Theme.Minimalist)
+
+    fun changeTheme(theme: Theme) {
+        viewModelScope.launch {
+            saveThemeUseCase(theme)
+        }
+    }
+}=== -e-n-d- ===
+
+=== workspace/auth/data/mappers/AuthMappers.kt ===
+package com.example.glide.workspace.auth.data.mappers
+
+import com.example.glide.workspace.auth.data.remote.dto.SignUpRequestDTO
+import com.example.glide.workspace.auth.data.remote.dto.SignUpResponseDTO
+import com.example.glide.workspace.auth.domain.models.SignUpResult
+import com.example.glide.workspace.auth.domain.models.User
+
+// DATA  LAYER TO DOMAIN LAYER
+fun SignUpRequestDTO.toUser(): User {
+    return User(
+        name = name,
+        phone = phone,
+        email = email,
+        password = password,
+        governmentId = governmentId,
+        governmentIdType = governmentIdType,
+        age = age,
+        gender = gender,
+        address = address
+    )
+}
+
+// DATA  LAYER TO DOMAIN LAYER
+fun SignUpResponseDTO.toSignUpResult(): SignUpResult {
+    return SignUpResult(
+        success = success,
+        message = message
+    )
+}
+
+// DOMAIN LAYER TO DATA LAYER
+fun User.toSignUpRequestDTO(): SignUpRequestDTO {
+    return SignUpRequestDTO(
+        name = name,
+        phone = phone,
+        email = email,
+        password = password,
+        governmentId = governmentId,
+        governmentIdType = governmentIdType,
+        age = age,
+        gender = gender,
+        address = address
+    )
+}
+=== workspace/auth/data/remote/api/AuthApi.kt ===
+package com.example.glide.workspace.auth.data.remote.api
+
+import com.example.glide.workspace.auth.data.remote.dto.SignUpRequestDTO
+import com.example.glide.workspace.auth.data.remote.dto.SignUpResponseDTO
+import com.example.glide.workspace.core.ApiEndpoints
+import retrofit2.Response
+import retrofit2.http.Body
+import retrofit2.http.POST
+
+interface AuthApi {
+    @POST(ApiEndpoints.SIGN_UP_USER)
+    suspend fun signUp(@Body() signUpRequest: SignUpRequestDTO): Response<SignUpResponseDTO>
+}
+=== workspace/auth/data/remote/dto/SignUpRequestDTO.kt ===
+package com.example.glide.workspace.auth.data.remote.dto
+
+import com.google.gson.annotations.SerializedName
+
+data class SignUpRequestDTO(
+    @SerializedName("name") val name: String,
+    @SerializedName("phone") val phone: String,
+    @SerializedName("email") val email: String,
+    @SerializedName("password") val password: String,
+    @SerializedName("governmentId") val governmentId: String,
+    @SerializedName("governmentIdType") val governmentIdType: String,
+    @SerializedName("age") val age: Int,
+    @SerializedName("gender") val gender: String,
+    @SerializedName("address") val address: String
+)
+=== workspace/auth/data/remote/dto/SignUpResponseDTO.kt ===
+package com.example.glide.workspace.auth.data.remote.dto
+
+import com.google.gson.annotations.SerializedName
+
+data class SignUpResponseDTO(
+    @SerializedName("success") val success: Boolean,
+    @SerializedName("message") val message: String
+)
+
+=== workspace/auth/data/repository/AuthRepositoryImplementation.kt ===
+package com.example.glide.workspace.auth.data.repository
+
+import com.example.glide.workspace.auth.data.mappers.toSignUpRequestDTO
+import com.example.glide.workspace.auth.data.mappers.toSignUpResult
+import com.example.glide.workspace.auth.data.remote.api.AuthApi
+import com.example.glide.workspace.auth.domain.models.SignUpResult
+import com.example.glide.workspace.auth.domain.models.User
+import com.example.glide.workspace.auth.domain.repository.AuthRepository
+import javax.inject.Inject
+
+class AuthRepositoryImpl @Inject constructor(
+    private val api: AuthApi
+) : AuthRepository {
+
+    override suspend fun signUp(user: User): SignUpResult {
+        return try {
+            // Convert Domain User → DTO
+            val requestDTO = user.toSignUpRequestDTO()
+
+            // Call the API
+            val response = api.signUp(requestDTO)
+
+            // Network-level check (HTTP 2xx)
+            if (response.isSuccessful) {
+                val body = response.body()
+                if (body != null) {
+                    // API-level check (success field in JSON)
+                    if (body.success) {
+                        // Success → map DTO to Domain || Mapper
+                        body.toSignUpResult()
+                    } else {
+                        // API returned success = false
+                        SignUpResult(false, body.message)
+                    }
+                } else {
+                    // Body is null, unexpected
+                    SignUpResult(false, "Empty response from server")
+                }
+            } else {
+                // Network failure (HTTP 4xx/5xx)
+                // SignUpResult(false, "Network error: ${response.code()} ${response.message()}")
+                SignUpResult(false, "Network error")
+            }
+        } catch (e: Exception) {
+            // Exception (timeout, serialization, etc.)
+            // SignUpResult(false, "Unexpected error: ${e.localizedMessage ?: e.message}")
+            SignUpResult(false, "Unexpected error")
+        }
+    }
+}
+
+=== workspace/auth/di/AuthModule.kt ===
+package com.example.glide.workspace.auth.di
+
+import com.example.glide.workspace.auth.data.repository.AuthRepositoryImpl
+import com.example.glide.workspace.auth.domain.repository.AuthRepository
+import dagger.Binds
+import dagger.Module
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+import javax.inject.Singleton
+
+@Module
+@InstallIn(SingletonComponent::class)
+abstract class AuthModule {
+
+    @Binds
+    @Singleton
+    abstract fun bindAuthRepository( authRepositoryImpl: AuthRepositoryImpl ) : AuthRepository
+}
+=== workspace/auth/di/UseCaseModule.kt ===
+package com.example.glide.workspace.auth.di
+
+import com.example.glide.workspace.auth.domain.repository.AuthRepository
+import com.example.glide.workspace.auth.domain.usecases.SignUpUseCase
+import dagger.Module
+import dagger.Provides
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+import javax.inject.Singleton
+
+@Module
+@InstallIn(SingletonComponent::class)
+object UseCaseModule {
+
+    @Provides
+    @Singleton
+    fun provideSignUpUseCase(
+        authRepository: AuthRepository
+    ): SignUpUseCase {
+        return SignUpUseCase(authRepository)
+    }
+}
+=== workspace/auth/domain/models/SignUpResult.kt ===
+package com.example.glide.workspace.auth.domain.models
+
+data class SignUpResult(
+    val success: Boolean,
+    val message: String
+)
+
+=== workspace/auth/domain/models/User.kt ===
+package com.example.glide.workspace.auth.domain.models
+
+data class User(
+    val name: String,
+    val phone: String,
+    val email: String,
+    val password: String,
+    val governmentId: String,
+    val governmentIdType: String,
+    val age: Int,
+    val gender: String,
+    val address: String
+)
+
+=== workspace/auth/domain/repository/AuthRepository.kt ===
+package com.example.glide.workspace.auth.domain.repository
+
+import com.example.glide.workspace.auth.domain.models.SignUpResult
+import com.example.glide.workspace.auth.domain.models.User
+
+interface AuthRepository {
+    suspend fun signUp(user: User): SignUpResult
+}
+=== workspace/auth/domain/usecases/SignUpUseCase.kt ===
+package com.example.glide.workspace.auth.domain.usecases
+
+import com.example.glide.workspace.auth.domain.models.SignUpResult
+import com.example.glide.workspace.auth.domain.models.User
+import com.example.glide.workspace.auth.domain.repository.AuthRepository
+
+class SignUpUseCase(
+    private val authRepository: AuthRepository
+) {
+    suspend operator fun invoke(user: User): SignUpResult {
+        // DeStructure user properties
+        val (name, phone, email, password, governmentId, governmentIdType, age, gender, address) = user
+
+        // 1️⃣ Validate inputs
+        if (name.isBlank()) return SignUpResult(false, "Name cannot be empty.")
+        if (governmentIdType.isBlank()) return SignUpResult(false, "GovernmentId Type cannot be empty.")
+        if (gender.isBlank()) return SignUpResult(false, "Gender cannot be empty.")
+        if (address.isBlank()) return SignUpResult(false, "Address cannot be empty.")
+        if (email.isBlank() || !isValidEmail(email)) return SignUpResult(false, "Invalid email format.")
+        if (phone.isBlank() || !isValidPhone(phone)) return SignUpResult(false, "Invalid phone number.")
+        if (password.length < 8) return SignUpResult(false, "Password must be at least 8 characters long.")
+        if (governmentId.isBlank()) return SignUpResult(false, "Government ID is required.")
+        if (age < 18) return SignUpResult(false, "User must be 18 or older.")
+
+        // 2️⃣ Delegate to repository
+        return try {
+            authRepository.signUp(user)
+        } catch (e: Exception) {
+            SignUpResult(false, "Unexpected error: ${e.localizedMessage ?: "Unknown"}")
+        }
+    }
+
+    // ---------------------------
+    // 🔧 Validation Helpers
+    // ---------------------------
+    private fun isValidEmail(email: String): Boolean {
+        return android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()
+    }
+
+    private fun isValidPhone(phone: String): Boolean {
+        return phone.matches(Regex("^[6-9][0-9]{9}$"))
+    }
+}
+
+=== workspace/auth/presentation/screens/Register.kt ===
+package com.example.glide.workspace.auth.presentation.screens
+
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.example.glide.workspace.core.components.InputFieldVariant
+import com.example.glide.workspace.core.components.ThemedPrimaryInputField
+import com.example.glide.workspace.ui.theme.AppTheme
+
+@Composable
+fun RegisterUserScreen(
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier.fillMaxSize()) {
+       Column {
+           Text(
+               text = "Register",
+               modifier = modifier
+                   .fillMaxWidth(),
+               fontSize = 32.sp,
+               fontWeight = FontWeight.SemiBold,
+               textAlign = TextAlign.Center,
+               color = MaterialTheme.colorScheme.primary
+           )
+           Text(
+               text = "Hi, Create your account",
+               modifier = modifier
+                   .fillMaxWidth(),
+               fontSize = 16.sp,
+               fontWeight = FontWeight.Normal,
+               fontStyle = FontStyle.Italic,
+               textAlign = TextAlign.Center,
+               color = MaterialTheme.colorScheme.primary
+           )
+       }
+
+        // Content area --main body
+        Column (modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+            ThemedPrimaryInputField(variant = InputFieldVariant.Filled)
+
+        }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun PreviewRegisterUserScreen() {
+    AppTheme {
+        Surface(modifier = Modifier.fillMaxSize()) {
+            RegisterUserScreen()
+        }
+    }
+}
+=== workspace/core/ApiEndpoints.kt ===
+package com.example.glide.workspace.core
+
+object ApiEndpoints {
+    const val BASE_URL: String = "http://10.0.2.2:3000/"
+    const val SIGN_UP_USER: String = "/api/create-user"
+}
+=== workspace/core/components/CustomTextInputField.kt ===
+package com.example.glide.workspace.core.components
+
+
+=== workspace/core/components/ThemedPrimaryDropdown.kt ===
+package com.example.glide.workspace.core.components
+
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import com.example.glide.workspace.ui.theme.ThemesPreview
+
+enum class DropDownVariant {
+    Filled, Outline, Tonal
+}
+enum class DropDownSize {
+    Small, Medium, Large
+}
+
+@ExperimentalMaterial3Api
+@Composable
+fun ThemedPrimaryDropdown(
+    selectedItem: String,
+    items: List<String>,
+    onItemSelected: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    label: String = "Default label",
+    placeholder: String = "Select an item ..",
+    enabled: Boolean = true,
+    variant: DropDownVariant = DropDownVariant.Filled,
+    size: DropDownSize = DropDownSize.Medium,
+    isError: Boolean = false,
+    supportingText: String = "Supporting text",
+    interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    // Handle different sizes
+    val verticalPadding = when (size) {
+        DropDownSize.Small -> 8.dp
+        DropDownSize.Medium -> 12.dp
+        DropDownSize.Large -> 16.dp
+    }
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = !expanded },
+        modifier = modifier
+    ) {
+        when (variant) {
+            DropDownVariant.Filled -> {
+                TextField(
+                    modifier = Modifier.menuAnchor()
+                        .fillMaxWidth()
+                        .padding(vertical = verticalPadding),
+                    value = selectedItem,
+                    onValueChange = {},
+                    label = { Text(label) },
+                    placeholder = { Text(placeholder) },
+                    readOnly = true,
+                    enabled = enabled,
+                    isError = isError,
+                    supportingText = {
+                        if (supportingText.isNotEmpty()) {
+                            Text(supportingText)
+                        }
+                    },
+                    trailingIcon = {
+                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+                    },
+                    interactionSource = interactionSource
+                )
+            }
+            DropDownVariant.Outline -> {
+                // TODO: Implement Outline variant
+                TextField(
+                    modifier = Modifier.menuAnchor()
+                        .fillMaxWidth()
+                        .padding(vertical = verticalPadding),
+                    value = selectedItem,
+                    onValueChange = {},
+                    label = { Text(label) },
+                    placeholder = { Text(placeholder) },
+                    readOnly = true,
+                    enabled = enabled,
+                    isError = isError,
+                    supportingText = {
+                        if (supportingText.isNotEmpty()) {
+                            Text(supportingText)
+                        }
+                    },
+                    trailingIcon = {
+                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+                    },
+                    interactionSource = interactionSource
+                )
+            }
+            DropDownVariant.Tonal -> {
+                // TODO: Implement Tonal variant
+                TextField(
+                    modifier = Modifier.menuAnchor()
+                        .fillMaxWidth()
+                        .padding(vertical = verticalPadding),
+                    value = selectedItem,
+                    onValueChange = {},
+                    label = { Text(label) },
+                    placeholder = { Text(placeholder) },
+                    readOnly = true,
+                    enabled = enabled,
+                    isError = isError,
+                    supportingText = {
+                        if (supportingText.isNotEmpty()) {
+                            Text(supportingText)
+                        }
+                    },
+                    trailingIcon = {
+                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+                    },
+                    interactionSource = interactionSource
+                )
+            }
+        }
+
+        // Move the menu outside of the when statement
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            items.forEach { item ->
+                DropdownMenuItem(
+                    text = { Text(item) },
+                    onClick = {
+                        onItemSelected(item)
+                        expanded = false
+                    }
+                )
+            }
+        }
+    }
+}
+
+//@OptIn(ExperimentalMaterial3Api::class)
+//@Preview(showBackground = true, name = "All Themes - Dropdown")
+//@Composable
+//fun PreviewThemedPrimaryDropdown() {
+//    ThemesPreview {
+//        var selectedItem by remember { mutableStateOf("") }
+//
+//        ThemedPrimaryDropdown(
+//            selectedItem = selectedItem,
+//            items = listOf("Option 1", "Option 2", "Option 3", "Option 4"),
+//            onItemSelected = { selectedItem = it },
+//            label = "Choose an option",
+//            placeholder = "Select...",
+//            supportingText = "Please select one option"
+//        )
+//    }
+//}
+=== workspace/core/components/ThemedPrimaryInputField.kt ===
+package com.example.glide.workspace.core.components
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.example.glide.workspace.ui.theme.ThemesPreview
+import com.example.glide.workspace.ui.theme.UiShapeConfigs
+
+enum class InputFieldVariant {
+    Filled, Outlined, Tonal
+}
+
+enum class InputFieldSize {
+    Small, Medium, Large
+}
+
+
+@Composable
+fun ThemedPrimaryInputField(
+    value: String = "Enter the text here...",
+    onValueChange: (String) -> Unit = {},
+    modifier: Modifier = Modifier,
+    label: String = "Default Label",
+    placeHolder: String = "Default placeholder...",
+    enabled: Boolean = true,
+    variant: InputFieldVariant = InputFieldVariant.Filled,
+    size: InputFieldSize = InputFieldSize.Medium,
+    isError: Boolean = false,
+    supportingText: String = "Default supporting text",
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
+    visualTransformation: VisualTransformation = VisualTransformation.None,
+    singleLine: Boolean = true,
+    maxLines: Int = if (singleLine) 1 else Int.MAX_VALUE,
+    interactionSource: MutableInteractionSource = remember { MutableInteractionSource() }
+){
+    // Track focus state for border thickness
+    val isFocused by interactionSource.collectIsFocusedAsState()
+    val rounderCornerShapeValue = UiShapeConfigs.INPUT_CORNER_RADIUS
+
+    val typography = when (size) {
+        InputFieldSize.Small -> MaterialTheme.typography.bodySmall.copy(
+            fontWeight = FontWeight.Normal,
+            letterSpacing = 0.2.sp
+        )
+        InputFieldSize.Medium -> MaterialTheme.typography.bodyLarge.copy(
+            fontWeight = FontWeight.Normal,
+            letterSpacing = 0.5.sp
+        )
+        InputFieldSize.Large -> MaterialTheme.typography.titleMedium.copy(
+            fontWeight = FontWeight.Normal,
+            letterSpacing = 0.5.sp
+        )
+    }
+
+    Column(modifier = modifier) {
+        when(variant) {
+            // Filled variant
+            InputFieldVariant.Filled -> {
+                Column {
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            color = if(isFocused) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                        )
+                    )
+                    Column {
+                        Box(modifier = Modifier
+                            .clip(RoundedCornerShape(rounderCornerShapeValue))  // Clips all content
+                            .border(
+                            width = if (isFocused) 2.dp else 1.dp,
+                            color =  when {
+                                isError -> MaterialTheme.colorScheme.error
+                                isFocused -> MaterialTheme.colorScheme.primary
+                                else -> MaterialTheme.colorScheme.outline
+                            },
+                                shape = RoundedCornerShape(rounderCornerShapeValue) // Clips all content
+                        )
+                        ){
+                            TextField(
+                                value = value,
+                                onValueChange = onValueChange,
+                                modifier = modifier.fillMaxWidth(),
+                                enabled = enabled,
+                                placeholder = {
+                                    Text(
+                                        text = placeHolder,
+                                        style = typography.copy(
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    )
+                                },
+                                isError = isError,
+                                interactionSource = interactionSource,  // REQUIRED
+                                keyboardOptions = keyboardOptions,
+                                visualTransformation = visualTransformation,
+                                singleLine = singleLine,
+                                maxLines = maxLines,
+                                colors = TextFieldDefaults.colors(
+                                    focusedContainerColor = MaterialTheme.colorScheme.surface,
+                                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                                    focusedIndicatorColor = MaterialTheme.colorScheme.primary,
+                                    unfocusedIndicatorColor = MaterialTheme.colorScheme.outline,
+                                    errorIndicatorColor = MaterialTheme.colorScheme.error,
+                                    cursorColor = MaterialTheme.colorScheme.primary,
+                                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                    errorTextColor = MaterialTheme.colorScheme.error,
+                                    disabledTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                                ),
+                            )
+                        }
+                             // ----- Supporting text (outside the border) -----------------
+                             if (supportingText.isNotEmpty()) {
+                                 Text(
+                                     text = supportingText,
+                                     style = MaterialTheme.typography.bodySmall.copy(
+                                         color = if (isError) MaterialTheme.colorScheme.error
+                                         else MaterialTheme.colorScheme.onSurfaceVariant
+                                     ),
+                                     modifier = Modifier.padding(top = 4.dp)
+                                 )
+                             }
+
+                     }
+
+                }
+
+            }
+
+            // Outlined variant
+            // ────────────────────── Outlined variant ──────────────────────
+            InputFieldVariant.Outlined -> {
+                Column {
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            color = if (isFocused) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                        )
+                    )
+                    OutlinedTextField(
+                        value = value,
+                        onValueChange = onValueChange,
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = enabled,
+                        placeholder = {
+                            Text(
+                                text = placeHolder,
+                                style = typography.copy(
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            )
+                        },
+                        isError = isError,
+                        supportingText = if (supportingText.isNotEmpty()) {
+                            {
+                                Text(
+                                    text = supportingText,
+                                    style = MaterialTheme.typography.bodySmall.copy(
+                                        color = if (isError) MaterialTheme.colorScheme.error
+                                        else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                )
+                            }
+                        } else null,
+                        interactionSource = interactionSource,
+                        keyboardOptions = keyboardOptions,
+                        visualTransformation = visualTransformation,
+                        singleLine = singleLine,
+                        maxLines = maxLines,
+                        shape = RoundedCornerShape(rounderCornerShapeValue),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                            errorBorderColor = MaterialTheme.colorScheme.error,
+                            disabledBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.38f),
+                            cursorColor = MaterialTheme.colorScheme.primary,
+                            focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                            errorTextColor = MaterialTheme.colorScheme.error,
+                            disabledTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+                            // Container colors are transparent for true outlined style
+                            focusedContainerColor = Color.Transparent,
+                            unfocusedContainerColor = Color.Transparent,
+                            disabledContainerColor = Color.Transparent
+                        )
+                    )
+                }
+            }
+
+            // ────────────────────── Tonal variant ──────────────────────
+            InputFieldVariant.Tonal -> {
+                Column {
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            color = if (isFocused) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                        )
+                    )
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(rounderCornerShapeValue))
+                            .border(
+                                width = if (isFocused) 2.dp else 1.dp,
+                                color = when {
+                                    isError -> MaterialTheme.colorScheme.error
+                                    isFocused -> MaterialTheme.colorScheme.primary
+                                    else -> MaterialTheme.colorScheme.outline
+                                },
+                                shape = RoundedCornerShape(rounderCornerShapeValue)
+                            )
+                            .background(
+                                color = when {
+                                    isError -> MaterialTheme.colorScheme.errorContainer
+                                    else -> MaterialTheme.colorScheme.surfaceContainerHighest
+                                }
+                            )
+                    ) {
+                        TextField(
+                            value = value,
+                            onValueChange = onValueChange,
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = enabled,
+                            placeholder = {
+                                Text(
+                                    text = placeHolder,
+                                    style = typography.copy(
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                )
+                            },
+                            isError = isError,
+                            interactionSource = interactionSource,
+                            keyboardOptions = keyboardOptions,
+                            visualTransformation = visualTransformation,
+                            singleLine = singleLine,
+                            maxLines = maxLines,
+                            colors = TextFieldDefaults.colors(
+                                focusedContainerColor = Color.Transparent,
+                                unfocusedContainerColor = Color.Transparent,
+                                disabledContainerColor = Color.Transparent,
+                                focusedIndicatorColor = Color.Transparent,
+                                unfocusedIndicatorColor = Color.Transparent,
+                                errorIndicatorColor = Color.Transparent,
+                                cursorColor = MaterialTheme.colorScheme.primary,
+                                focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                errorTextColor = MaterialTheme.colorScheme.error,
+                                disabledTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                            )
+                        )
+                    }
+
+                    if (supportingText.isNotEmpty()) {
+                        Text(
+                            text = supportingText,
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                color = if (isError) MaterialTheme.colorScheme.error
+                                else MaterialTheme.colorScheme.onSurfaceVariant
+                            ),
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                    }
+                }
+            }
+            // Tonal variant --end
+        }
+    }
+}
+
+@Preview(showBackground = true, name = "All Themes - Input Field")
+@Composable
+fun PreviewInputFields() {
+    ThemesPreview {
+        ThemedPrimaryInputField(variant = InputFieldVariant.Tonal)
+    }
+}
+=== workspace/core/di/NetworkModule.kt ===
+package com.example.glide.workspace.core.di
+
+import com.example.glide.workspace.auth.data.remote.api.AuthApi
+import com.example.glide.workspace.core.ApiEndpoints
+import dagger.Module
+import dagger.Provides
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+import okhttp3.OkHttpClient
+import okhttp3.logging.HttpLoggingInterceptor
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
+import javax.inject.Singleton
+
+@Module
+@InstallIn(SingletonComponent::class)
+object NetworkModule {
+    @Provides
+    @Singleton
+    fun provideOkHttpClient(): OkHttpClient {
+        val logging = HttpLoggingInterceptor().apply {
+            level = HttpLoggingInterceptor.Level.BODY
+        }
+        return OkHttpClient.Builder().addInterceptor(logging).build()
+    }
+
+    @Provides
+    @Singleton
+    fun provideRetrofit(okHttpClient: OkHttpClient): Retrofit {
+        return Retrofit.Builder()
+            .baseUrl(ApiEndpoints.BASE_URL)
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+    }
+
+    @Provides
+    @Singleton
+    fun provideAuthApi(retrofit: Retrofit): AuthApi {
+        return retrofit.create(AuthApi::class.java)
+    }
+}
+=== workspace/core/utils/constants.kt ===
+package com.example.glide.workspace.core.utils
+
+object AppConstants {
+
+    const val APP_ID = "3696a203-93f4-43bc-ae26-b31b705e518f"
+
+    val DATA_STORE_NAME = "gated_community_data_store_$APP_ID"
+
+    // Read-only theme key using app ID
+    val THEME_KEY = "gated_community_selected_theme_$APP_ID"
+
+    // You can add other constants here as needed
+    const val SOME_OTHER_CONSTANT = "SomeValue"
+}
+
+=== workspace/DELETE_ME.txt ===
+@Composable
+fun AllPoppinsWeightsPreview() {
+    Column(modifier = Modifier.padding(8.dp)) {
+
+        Text(
+            "Poppins Thin",
+            fontFamily = Poppins,
+            fontWeight = FontWeight.Thin,
+            fontSize = 24.sp
+        )
+        Text(
+            "Poppins ExtraLight",
+            fontFamily = Poppins,
+            fontWeight = FontWeight.ExtraLight,
+            fontSize = 24.sp
+        )
+        Text(
+            "Poppins Light",
+            fontFamily = Poppins,
+            fontWeight = FontWeight.Light,
+            fontSize = 24.sp
+        )
+        Text(
+            "Poppins Regular",
+            fontFamily = Poppins,
+            fontWeight = FontWeight.Normal,
+            fontSize = 24.sp
+        )
+        Text(
+            "Poppins Medium",
+            fontFamily = Poppins,
+            fontWeight = FontWeight.Medium,
+            fontSize = 24.sp
+        )
+        Text(
+            "Poppins SemiBold",
+            fontFamily = Poppins,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 24.sp
+        )
+        Text(
+            "Poppins Bold",
+            fontFamily = Poppins,
+            fontWeight = FontWeight.Bold,
+            fontSize = 24.sp
+        )
+        Text(
+            "Poppins ExtraBold",
+            fontFamily = Poppins,
+            fontWeight = FontWeight.ExtraBold,
+            fontSize = 24.sp
+        )
+        Text(
+            "Poppins Black",
+            fontFamily = Poppins,
+            fontWeight = FontWeight.Black,
+            fontSize = 24.sp
+        )
+
+        // Italic examples
+        Text(
+            "Poppins Italic",
+            fontFamily = Poppins,
+            fontWeight = FontWeight.Normal,
+            fontStyle = FontStyle.Italic,
+            fontSize = 24.sp
+        )
+        Text(
+            "Poppins Bold Italic",
+            fontFamily = Poppins,
+            fontWeight = FontWeight.Bold,
+            fontStyle = FontStyle.Italic,
+            fontSize = 24.sp
+        )
+    }
+}
+
+=== workspace/ui/theme/AppTheme.kt ===
+package com.example.glide.workspace.ui.theme
+
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.MaterialTheme
+
+import androidx.compose.runtime.Composable
+import com.example.glide.workspace.workspace_theme.domain.models.Theme
+import com.example.glide.workspace.workspace_theme.presentation.*
+
+
+@Composable
+fun AppTheme(
+    theme: Theme = Theme.Minimalist,
+    darkTheme: Boolean = isSystemInDarkTheme(),
+    content: @Composable () -> Unit
+) {
+    // val Typography = Typography()
+
+    val colorScheme = when (theme) {
+        Theme.Minimalist -> if (darkTheme) MinimalistDark else MinimalistLight
+        Theme.CyberNeon -> if (darkTheme) CyberNeonDark else CyberNeonLight
+        Theme.SolarFlare -> if (darkTheme) SolarFlareDark else SolarFlareLight
+        Theme.ForestWhisper -> if (darkTheme) ForestWhisperDark else ForestWhisperLight
+        Theme.ArcticFrost -> if (darkTheme) ArcticFrostDark else ArcticFrostLight
+        Theme.RoyalVelvet -> if (darkTheme) RoyalVelvetDark else RoyalVelvetLight
+        Theme.SunsetDunes -> if (darkTheme) SunsetDunesDark else SunsetDunesLight
+        Theme.MidnightSapphire -> if (darkTheme) MidnightSapphireDark else MidnightSapphireLight
+    }
+
+    MaterialTheme(
+        colorScheme = colorScheme,
+        typography = AppTypography,
+        content = content
+    )
+}
+
+
+
+=== workspace/ui/theme/PreviewAllThemes.kt ===
+package com.example.glide.workspace.ui.theme
+
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import com.example.glide.workspace.core.components.ThemedPrimaryInputField
+import com.example.glide.workspace.workspace_theme.domain.models.Theme
+
+@Composable
+fun ThemesPreview(light:Boolean = true, composable: @Composable () -> Unit) {
+    val dark: Boolean = !light
+    // List of all themes with names and dark mode flag
+    val themePreviews = listOf(
+        "Minimalist Light"      to (Theme.Minimalist to light),
+        "Minimalist Dark"       to (Theme.Minimalist to dark),
+        "Forest Light"          to (Theme.ForestWhisper to light),
+        "Forest Dark"           to (Theme.ForestWhisper to dark),
+        "Solar Light"           to (Theme.SolarFlare to light),
+        "Solar Dark"            to (Theme.SolarFlare to dark),
+        "Cyber Light"           to (Theme.CyberNeon to light),
+        "Cyber Dark"            to (Theme.CyberNeon to dark),
+        "Arctic Light"          to (Theme.ArcticFrost to light),
+        "Arctic Dark"           to (Theme.ArcticFrost to dark),
+        "Royal Light"           to (Theme.RoyalVelvet to light),
+        "Royal Dark"            to (Theme.RoyalVelvet to dark),
+        "Sunset Light"          to (Theme.SunsetDunes to light),
+        "Sunset Dark"           to (Theme.SunsetDunes to dark),
+        "Sapphire Light"        to (Theme.MidnightSapphire to light),
+        "Sapphire Dark"         to (Theme.MidnightSapphire to dark)
+    )
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+            .verticalScroll(rememberScrollState())
+    ) {
+        themePreviews.forEach { (title, pair) ->
+            val (theme, isDark) = pair
+
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(vertical = 12.dp)
+            )
+
+            AppTheme(theme = theme, darkTheme = !isDark) {
+                Surface (
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 24.dp),
+                    shadowElevation = 4.dp,
+                    tonalElevation = 4.dp
+                ) {
+                    composable()
+                }
+            }
+        }
+    }
+}
+=== workspace/ui/theme/Typography.kt ===
+
+// workspace/ui/theme/Type.kt (Enhanced version)
+package com.example.glide.workspace.ui.theme
+
+import androidx.compose.material3.Typography
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
+import com.example.glide.R
+
+// 1️⃣ Define the Poppins font family with all weights
+val Poppins = FontFamily(
+    Font(R.font.poppins_thin, FontWeight.Thin),
+    Font(R.font.poppins_light, FontWeight.Light),
+    Font(R.font.poppins_regular, FontWeight.Normal),
+    Font(R.font.poppins_medium, FontWeight.Medium),
+    Font(R.font.poppins_semi_bold, FontWeight.SemiBold),
+    Font(R.font.poppins_bold, FontWeight.Bold),
+    Font(R.font.poppins_black, FontWeight.Black)
+)
+
+// 2️⃣ Enhanced typography with appropriate weights for each style
+val AppTypography = Typography(
+    // Display styles - Light weight for large display text
+    displayLarge = TextStyle(
+        fontFamily = Poppins,
+        fontWeight = FontWeight.Light,
+        fontSize = 57.sp,
+        lineHeight = 64.sp,
+        letterSpacing = (-0.25).sp
+    ),
+    displayMedium = TextStyle(
+        fontFamily = Poppins,
+        fontWeight = FontWeight.Light,
+        fontSize = 45.sp,
+        lineHeight = 52.sp
+    ),
+    displaySmall = TextStyle(
+        fontFamily = Poppins,
+        fontWeight = FontWeight.Light,
+        fontSize = 36.sp,
+        lineHeight = 44.sp
+    ),
+
+    // Headline styles - Normal weight for better readability
+    headlineLarge = TextStyle(
+        fontFamily = Poppins,
+        fontWeight = FontWeight.Normal,
+        fontSize = 32.sp,
+        lineHeight = 40.sp
+    ),
+    headlineMedium = TextStyle(
+        fontFamily = Poppins,
+        fontWeight = FontWeight.Normal,
+        fontSize = 28.sp,
+        lineHeight = 36.sp
+    ),
+    headlineSmall = TextStyle(
+        fontFamily = Poppins,
+        fontWeight = FontWeight.Normal,
+        fontSize = 24.sp,
+        lineHeight = 32.sp
+    ),
+
+    // Title styles - Medium weight for emphasis
+    titleLarge = TextStyle(
+        fontFamily = Poppins,
+        fontWeight = FontWeight.Medium,
+        fontSize = 22.sp,
+        lineHeight = 28.sp
+    ),
+    titleMedium = TextStyle(
+        fontFamily = Poppins,
+        fontWeight = FontWeight.Medium,
+        fontSize = 16.sp,
+        lineHeight = 24.sp,
+        letterSpacing = 0.15.sp
+    ),
+    titleSmall = TextStyle(
+        fontFamily = Poppins,
+        fontWeight = FontWeight.Medium,
+        fontSize = 14.sp,
+        lineHeight = 20.sp,
+        letterSpacing = 0.1.sp
+    ),
+
+    // Body styles - Regular weight for comfortable reading
+    bodyLarge = TextStyle(
+        fontFamily = Poppins,
+        fontWeight = FontWeight.Normal,
+        fontSize = 16.sp,
+        lineHeight = 24.sp,
+        letterSpacing = 0.5.sp
+    ),
+    bodyMedium = TextStyle(
+        fontFamily = Poppins,
+        fontWeight = FontWeight.Normal,
+        fontSize = 14.sp,
+        lineHeight = 20.sp,
+        letterSpacing = 0.25.sp
+    ),
+    bodySmall = TextStyle(
+        fontFamily = Poppins,
+        fontWeight = FontWeight.Normal,
+        fontSize = 12.sp,
+        lineHeight = 16.sp,
+        letterSpacing = 0.4.sp
+    ),
+
+    // Label styles - Medium weight for interactive elements
+    labelLarge = TextStyle(
+        fontFamily = Poppins,
+        fontWeight = FontWeight.Medium,
+        fontSize = 14.sp,
+        lineHeight = 20.sp,
+        letterSpacing = 0.1.sp
+    ),
+    labelMedium = TextStyle(
+        fontFamily = Poppins,
+        fontWeight = FontWeight.Medium,
+        fontSize = 12.sp,
+        lineHeight = 16.sp,
+        letterSpacing = 0.5.sp
+    ),
+    labelSmall = TextStyle(
+        fontFamily = Poppins,
+        fontWeight = FontWeight.Medium,
+        fontSize = 11.sp,
+        lineHeight = 16.sp,
+        letterSpacing = 0.5.sp
+    )
+)
+
+//@Composable
+//fun GlideTheme(content: @Composable () -> Unit) {
+//    MaterialTheme(
+////        colorScheme = LightColorScheme, // or your own scheme
+//        typography = AppTypography, // ✅ apply Poppins Light globally
+//        content = content
+//    )
+//}
+=== workspace/ui/theme/UiShapeConfigs.kt ===
+package com.example.glide.workspace.ui.theme
+
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+
+object UiShapeConfigs {
+    // Corner radius
+    val INPUT_CORNER_RADIUS = 32.dp
+}
+=== workspace/welcome/presentation/screens/Welcome.kt ===
+package com.example.glide.workspace.welcome.presentation.screens
+
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.example.glide.R
+import com.example.glide.workspace.ui.theme.Poppins
+
+//@Preview
+@Composable
+fun Welcome(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier.background(Color.White)
+            .fillMaxHeight()
+            .safeDrawingPadding()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxHeight(),
+            verticalArrangement = Arrangement.SpaceBetween,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // Image takes half the height
+            Image(
+                painter = painterResource(id = R.drawable.welcome_screen),
+                contentDescription = "Welcome Image",
+                contentScale = ContentScale.Fit,
+                modifier = Modifier
+                    .fillMaxHeight(0.5f)
+            )
+
+            // Row takes half the height
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight()
+                    .padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight(),
+                    verticalArrangement = Arrangement.SpaceBetween,
+                    horizontalAlignment = Alignment.End   // <-- aligns children to right
+                ) {
+                    Text(
+                        text = "Hello and welcome!",
+                        fontFamily = Poppins,
+                        fontWeight = FontWeight.Normal,
+                        fontSize = 40.sp,
+                        letterSpacing = 1.8.sp,
+                        lineHeight = 36.sp,
+                        textAlign = TextAlign.Start,  // <-- text inside also aligns to right
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .fillMaxHeight(0.5f)
+                            .padding(end = 8.dp)
+                    )
+                    Text(
+                        text = "This is your space to\n" +
+                                "connect and build\n communities together..",
+                        fontFamily = Poppins,
+                        fontWeight = FontWeight.Normal,
+                        fontSize = 24.sp,
+                        letterSpacing = 1.5.sp,
+                        lineHeight = 32.sp,
+                        textAlign = TextAlign.End,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .fillMaxHeight(1f)
+                            .padding(end = 8.dp)
+                    )
+                }
+
+            }
+        }
+    }
+}
+=== workspace/workspace_theme/data/local/ThemeDataStore.kt ===
+package com.example.glide.workspace.workspace_theme.data.local
+
+import android.content.Context
+import android.util.Log
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
+import com.example.glide.workspace.core.utils.AppConstants
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+import javax.inject.Singleton
+
+val Context.appDataStore by preferencesDataStore(AppConstants.DATA_STORE_NAME)
+
+@Singleton
+class ThemeDataStore(private val context: Context) {
+    companion object {
+        val themeKey = stringPreferencesKey(AppConstants.THEME_KEY)
+    }
+    // Flow to observe the theme changes
+    val themeFlow: Flow<String?> = context.appDataStore.data
+        .map {prefs -> prefs[themeKey]
+    }
+
+    // Function to save the theme
+    suspend fun saveTheme(themeName: String) {
+        context.appDataStore.edit {
+            prefs -> prefs[themeKey] = themeName
+            Log.d("ThemeDataStore", "Saved theme $themeName")
+        }
+    }
+}
+=== workspace/workspace_theme/data/repository/ThemeRepositoryImplementation.kt ===
+package com.example.glide.workspace.workspace_theme.data.repository
+
+import com.example.glide.workspace.workspace_theme.data.local.ThemeDataStore
+import com.example.glide.workspace.workspace_theme.domain.models.Theme
+import com.example.glide.workspace.workspace_theme.domain.repository.ThemeRepository
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+import javax.inject.Inject
+
+class ThemeRepositoryImplementation @Inject constructor(
+    private val themeDataStore: ThemeDataStore
+): ThemeRepository {
+    override fun getThemeFlow(): Flow<Theme> {
+        return themeDataStore.themeFlow.map { Theme.fromName(it) }
+    }
+
+    override suspend fun saveTheme(theme: Theme) {
+        themeDataStore.saveTheme(theme.displayName)
+    }
+}
+=== workspace/workspace_theme/di/ThemeModule.kt ===
+package com.example.glide.workspace.workspace_theme.di
+
+import android.content.Context
+import com.example.glide.workspace.workspace_theme.data.local.ThemeDataStore
+import com.example.glide.workspace.workspace_theme.domain.repository.ThemeRepository
+import com.example.glide.workspace.workspace_theme.domain.usecases.GetThemeUseCase
+import com.example.glide.workspace.workspace_theme.domain.usecases.SaveThemeUseCase
+import dagger.Module
+import dagger.Provides
+import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
+import dagger.hilt.components.SingletonComponent
+import javax.inject.Singleton
+
+@Module
+@InstallIn(SingletonComponent::class)
+object ThemeModule {
+    @Provides
+    @Singleton
+    fun provideThemeDataSource(@ApplicationContext context: Context): ThemeDataStore {
+        return ThemeDataStore(context)
+    }
+
+    @Provides
+    @Singleton
+    fun provideGetThemeUseCase(repository: ThemeRepository): GetThemeUseCase {
+        return GetThemeUseCase(repository)
+    }
+
+    @Provides
+    @Singleton
+    fun provideSaveThemeUseCase(repository: ThemeRepository): SaveThemeUseCase {
+        return SaveThemeUseCase(repository)
+    }
+}
+=== workspace/workspace_theme/di/ThemeRepositoryModule.kt ===
+package com.example.glide.workspace.workspace_theme.di
+
+import com.example.glide.workspace.workspace_theme.data.repository.ThemeRepositoryImplementation
+import com.example.glide.workspace.workspace_theme.domain.repository.ThemeRepository
+import dagger.Binds
+import dagger.Module
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+import javax.inject.Singleton
+
+@Module
+@InstallIn(SingletonComponent::class)
+abstract class ThemeRepositoryModule {
+
+    @Binds
+    @Singleton
+    abstract fun bindsThemeRepository(themeRepositoryImplementation: ThemeRepositoryImplementation): ThemeRepository
+}
+=== workspace/workspace_theme/domain/models/Theme.kt ===
+package com.example.glide.workspace.workspace_theme.domain.models
+
+enum class Theme(val displayName: String) {
+    Minimalist("Minimalist"),
+    CyberNeon("Cyber Neon"),
+    SolarFlare("Solar Flare"),
+    ForestWhisper("Forest Whisper"),
+    ArcticFrost("Arctic Frost"),
+    RoyalVelvet("Royal Velvet"),
+    SunsetDunes("Sunset Dunes"),
+    MidnightSapphire("Midnight Sapphire");
+
+    companion object {
+        fun fromName(name: String?): Theme = entries.firstOrNull { it -> it.displayName == name } ?: Minimalist
+    }
+}
+=== workspace/workspace_theme/domain/repository/ThemeRepository.kt ===
+package com.example.glide.workspace.workspace_theme.domain.repository
+
+import com.example.glide.workspace.workspace_theme.domain.models.Theme
+import kotlinx.coroutines.flow.Flow
+
+interface ThemeRepository {
+    fun getThemeFlow(): Flow<Theme>
+    suspend fun saveTheme(theme: Theme)
+}
+=== workspace/workspace_theme/domain/usecases/GetThemeUseCase.kt ===
+package com.example.glide.workspace.workspace_theme.domain.usecases
+
+import com.example.glide.workspace.workspace_theme.domain.models.Theme
+import com.example.glide.workspace.workspace_theme.domain.repository.ThemeRepository
+import kotlinx.coroutines.flow.Flow
+
+class GetThemeUseCase(private val themeRepository: ThemeRepository) {
+    operator fun invoke(): Flow<Theme> = themeRepository.getThemeFlow()
+}
+=== workspace/workspace_theme/domain/usecases/SaveThemeUseCase.kt ===
+package com.example.glide.workspace.workspace_theme.domain.usecases
+
+import com.example.glide.workspace.workspace_theme.domain.models.Theme
+import com.example.glide.workspace.workspace_theme.domain.repository.ThemeRepository
+
+class SaveThemeUseCase(private val themeRepository: ThemeRepository) {
+    suspend operator fun invoke(theme: Theme) = themeRepository.saveTheme(theme)
+}
+=== workspace/workspace_theme/presentation/ColorSchemes.kt ===
+package com.example.glide.workspace.workspace_theme.presentation
+
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
+import androidx.compose.ui.graphics.Color
+
+// Minimalist (Default)
+// Minimalist Black & White Light Theme
+val MinimalistLight = lightColorScheme(
+    // Primary Colors - Charcoal Black
+    primary = Color(0xFF000000),        // Black
+    onPrimary = Color(0xFFFFFFFF),      // Pure white
+    primaryContainer = Color(0xFFF7FAFC), // Almost white
+    onPrimaryContainer = Color(0xFF1A202C), // Dark charcoal
+
+    // Secondary Colors - Medium Grays
+    secondary = Color(0xFF4A5568),      // Slate gray
+    onSecondary = Color(0xFFFFFFFF),    // White
+    secondaryContainer = Color(0xFFEDF2F7), // Light gray
+    onSecondaryContainer = Color(0xFF2D3748), // Charcoal
+
+    // Tertiary Colors - Accent Gray
+    tertiary = Color(0xFF718096),       // Cool gray accent
+    onTertiary = Color(0xFFFFFFFF),     // White
+    tertiaryContainer = Color(0xFFE2E8F0), // Light gray
+    onTertiaryContainer = Color(0xFF4A5568), // Slate gray
+
+    // Background & Surface - Clean Whites & Grays
+    background = Color(0xFFFFFFFF),     // Pure white
+    onBackground = Color(0xFF1A202C),   // Near black
+    surface = Color(0xFFFFFFFF),        // Pure white
+    onSurface = Color(0xFF1A202C),      // Near black
+    surfaceVariant = Color(0xFFF7FAFC), // Off-white
+    onSurfaceVariant = Color(0xFF718096), // Medium gray
+
+    // Error Colors - Retained for functionality
+    error = Color(0xFFE53E3E),          // Clean red
+    onError = Color(0xFFFFFFFF),        // White
+    errorContainer = Color(0xFFFFF5F5), // Very light red
+    onErrorContainer = Color(0xFFC53030), // Dark red
+
+    // Outline Colors - Subtle borders
+    outline = Color(0xFFE2E8F0),        // Light gray border
+    outlineVariant = Color(0xFFEDF2F7), // Very light gray border
+
+    // Inverse Colors
+    inverseSurface = Color(0xFF1A202C), // Dark for inverse
+    inverseOnSurface = Color(0xFFFFFFFF), // White on inverse
+    inversePrimary = Color(0xFFCBD5E0), // Light gray inverse
+
+    // Utility Colors
+    scrim = Color(0x991A202C),          // Semi-transparent dark
+//    shadow = Color(0x1A000000)          // Subtle shadow
+)
+
+// Minimalist Black & White Dark Theme
+val MinimalistDark = darkColorScheme(
+    // Primary Colors - Clean White
+    primary = Color(0xFFFFFFFF),        // Pure white
+    onPrimary = Color(0xFF000000),      // Pure black
+    primaryContainer = Color(0xFF1A202C), // Dark charcoal
+    onPrimaryContainer = Color(0xFFE2E8F0), // Light gray
+
+    // Secondary Colors - Medium Grays
+    secondary = Color(0xFFCBD5E0),      // Light gray
+    onSecondary = Color(0xFF000000),    // Black
+    secondaryContainer = Color(0xFF2D3748), // Medium dark
+    onSecondaryContainer = Color(0xFFE2E8F0), // Light gray
+
+    // Tertiary Colors - Accent Gray
+    tertiary = Color(0xFFA0AEC0),       // Medium light gray
+    onTertiary = Color(0xFF000000),     // Black
+    tertiaryContainer = Color(0xFF4A5568), // Medium gray
+    onTertiaryContainer = Color(0xFFEDF2F7), // Off-white
+
+    // Background & Surface - Dark Grays
+    background = Color(0xFF0F1419),     // Deep dark
+    onBackground = Color(0xFFE2E8F0),   // Light gray text
+    surface = Color(0xFF1A202C),        // Dark charcoal
+    onSurface = Color(0xFFE2E8F0),      // Light gray text
+    surfaceVariant = Color(0xFF2D3748), // Medium dark
+    onSurfaceVariant = Color(0xFFA0AEC0), // Medium gray text
+
+    // Error Colors
+    error = Color(0xFFFC8181),          // Light red
+    onError = Color(0xFF000000),        // Black
+    errorContainer = Color(0xFF742A2A), // Dark red
+    onErrorContainer = Color(0xFFFED7D7), // Light red
+
+    // Outline Colors
+    outline = Color(0xFF4A5568),        // Medium gray border
+    outlineVariant = Color(0xFF2D3748), // Dark gray border
+
+    // Inverse Colors
+    inverseSurface = Color(0xFFE2E8F0), // Light for inverse
+    inverseOnSurface = Color(0xFF1A202C), // Dark on inverse
+    inversePrimary = Color(0xFF2D3748), // Charcoal inverse
+
+    // Utility Colors
+    scrim = Color(0x99000000),          // Semi-transparent black
+//    shadow = Color(0xFF000000)          // Black shadow
+)
+
+// CyberNeon
+    .............
+    .............
+
+val SunsetDunesDark = darkColorScheme(
+        .............
+        .............
+)
+
+// MidnightSapphire
+val MidnightSapphireLight = lightColorScheme(
+       .............
+       .............
+)
+
+val MidnightSapphireDark = darkColorScheme(
+    .............
+    .............
+    scrim                 = Color(0x99000000)
+)
+
+
+
+=== workspace/workspace_theme/presentation/ThemeScreen.kt ===
+package com.example.glide.workspace.workspace_theme.presentation
+
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.glide.workspace.workspace_theme.domain.models.Theme
+
+@Composable
+fun ThemeScreen(
+    viewModel: ThemeViewModel = hiltViewModel()
+) {
+    val currentTheme by viewModel.theme.collectAsState()
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .padding(16.dp)
+            .verticalScroll(rememberScrollState())
+    ) {
+        // Current Theme Header
+        Text(
+            text = "Current Theme: ${currentTheme.displayName}",
+            style = MaterialTheme.typography.headlineMedium,
+            color = MaterialTheme.colorScheme.onBackground,
+            modifier = Modifier.padding(bottom = 16.dp)
+        )
+
+        // Theme Selection Grid
+        Text(
+            text = "Select Theme:",
+            style = MaterialTheme.typography.headlineSmall,
+            color = MaterialTheme.colorScheme.onBackground,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+
+        // Create rows for all themes
+        Theme.entries.forEach { theme ->
+            ThemeRow(
+                theme = theme,
+                isSelected = theme == currentTheme,
+                onThemeSelected = { viewModel.changeTheme(theme) }
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+        }
+    }
+}
+
+@Composable
+fun ThemeRow(
+    theme: Theme,
+    isSelected: Boolean,
+    onThemeSelected: () -> Unit
+) {
+    val borderColor = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surface),
+        onClick = onThemeSelected,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.onSurface
+        ),
+        border = BorderStroke(2.dp, borderColor)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            // Theme Name
+            Text(
+                text = theme.displayName,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            // Color preview circles (static palette preview)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                ColorCircle(color = getPrimaryColorForTheme(theme))
+                ColorCircle(color = getSecondaryColorForTheme(theme))
+                ColorCircle(color = getBackgroundColorForTheme(theme))
+                ColorCircle(color = getSurfaceColorForTheme(theme))
+            }
+        }
+    }
+}
+
+@Composable
+fun ColorCircle(color: Color) {
+    Box(
+        modifier = Modifier
+            .size(32.dp)
+            .clip(CircleShape)
+            .background(color)
+    )
+}
+
+// Static color previews for each theme
+fun getPrimaryColorForTheme(theme: Theme): Color {
+    return when (theme) {
+        Theme.Minimalist -> Color(0xFF6200EE)
+        Theme.CyberNeon -> Color(0xFF00FF88)
+        Theme.SolarFlare -> Color(0xFFFF6B35)
+        Theme.ForestWhisper -> Color(0xFF2E8B57)
+        Theme.ArcticFrost -> Color(0xFF87CEEB)
+        Theme.RoyalVelvet -> Color(0xFF8A2BE2)
+        Theme.SunsetDunes -> Color(0xFFFF8C00)
+        Theme.MidnightSapphire -> Color(0xFF191970)
+    }
+}
+
+fun getSecondaryColorForTheme(theme: Theme): Color {
+    return when (theme) {
+        Theme.Minimalist -> Color(0xFF03DAC5)
+        Theme.CyberNeon -> Color(0xFF00BFFF)
+        Theme.SolarFlare -> Color(0xFFFFD700)
+        Theme.ForestWhisper -> Color(0xFF90EE90)
+        Theme.ArcticFrost -> Color(0xFFE0FFFF)
+        Theme.RoyalVelvet -> Color(0xFFDA70D6)
+        Theme.SunsetDunes -> Color(0xFFFFD700)
+        Theme.MidnightSapphire -> Color(0xFF4169E1)
+    }
+}
+
+fun getBackgroundColorForTheme(theme: Theme): Color {
+    return when (theme) {
+        Theme.Minimalist -> Color(0xFFFFFFFF)
+        Theme.CyberNeon -> Color(0xFF000000)
+        Theme.SolarFlare -> Color(0xFFFFF8DC)
+        Theme.ForestWhisper -> Color(0xFFF5F5DC)
+        Theme.ArcticFrost -> Color(0xFFF0F8FF)
+        Theme.RoyalVelvet -> Color(0xFFF8F8FF)
+        Theme.SunsetDunes -> Color(0xFFFFF5EE)
+        Theme.MidnightSapphire -> Color(0xFF000080)
+    }
+}
+
+fun getSurfaceColorForTheme(theme: Theme): Color {
+    return when (theme) {
+        Theme.Minimalist -> Color(0xFFF5F5F5)
+        Theme.CyberNeon -> Color(0xFF1A1A1A)
+        Theme.SolarFlare -> Color(0xFFFFE4B5)
+        Theme.ForestWhisper -> Color(0xFFDEB887)
+        Theme.ArcticFrost -> Color(0xFFB0E0E6)
+        Theme.RoyalVelvet -> Color(0xFFD8BFD8)
+        Theme.SunsetDunes -> Color(0xFFFFE4C4)
+        Theme.MidnightSapphire -> Color(0xFF0000CD)
+    }
+}
+
+
+
+@Composable
+fun TestThemeBox() {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.primary), // theme background
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                text = "This is TestThemeBox",
+                color = MaterialTheme.colorScheme.onBackground,
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Box(
+                modifier = Modifier
+                    .size(100.dp)
+                    .background(MaterialTheme.colorScheme.primary)
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(
+                text = "Primary Color Sample",
+                color = MaterialTheme.colorScheme.onPrimary,
+                fontSize = 18.sp
+            )
+        }
+    }
+}
+
+=== workspace/workspace_theme/presentation/ThemeViewModel.kt ===
+package com.example.glide.workspace.workspace_theme.presentation
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.glide.workspace.workspace_theme.domain.models.Theme
+import com.example.glide.workspace.workspace_theme.domain.usecases.GetThemeUseCase
+import com.example.glide.workspace.workspace_theme.domain.usecases.SaveThemeUseCase
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+@HiltViewModel()
+class ThemeViewModel @Inject constructor(
+    private val getThemeUseCase: GetThemeUseCase,
+    private val saveThemeUseCase: SaveThemeUseCase
+): ViewModel() {
+    val theme = getThemeUseCase().stateIn(viewModelScope, SharingStarted.Eagerly, Theme.Minimalist)
+
+    fun changeTheme(theme: Theme) {
+        viewModelScope.launch {
+            saveThemeUseCase(theme)
+        }
+    }
+}
