@@ -2,9 +2,13 @@ package com.example.glide.workspace.auth.data.repository
 
 import com.example.glide.workspace.auth.data.mappers.toSignUpRequestDTO
 import com.example.glide.workspace.auth.data.mappers.toSignUpResult
+import com.example.glide.workspace.auth.data.mappers.toVerifyOtpDTO
+import com.example.glide.workspace.auth.data.mappers.toVerifyOtpResult
 import com.example.glide.workspace.auth.data.remote.api.AuthApi
 import com.example.glide.workspace.auth.domain.models.SignUpResult
 import com.example.glide.workspace.auth.domain.models.User
+import com.example.glide.workspace.auth.domain.models.VerifyOtp
+import com.example.glide.workspace.auth.domain.models.VerifyOtpResult
 import com.example.glide.workspace.auth.domain.repository.AuthRepository
 import javax.inject.Inject
 
@@ -47,4 +51,32 @@ class AuthRepositoryImpl @Inject constructor(
             SignUpResult(false, "Unexpected error")
         }
     }
+
+    override suspend fun verifyOtp(otpData: VerifyOtp): VerifyOtpResult {
+        return try {
+            // Convert request to dto using mapper i.e Domain layer (use case )-> data layer(api pipeline) as otpData is getting received from domain layer
+            val requestDto = otpData.toVerifyOtpDTO()
+
+            // Call the api
+            val response = api.verifyOtp(requestDto)
+            if (response.isSuccessful) {
+                val body = response.body()
+                if (body != null) {
+                    if (body.success) {
+                        body.toVerifyOtpResult()
+                    } else {
+                        VerifyOtpResult(success = false, message = body.message)
+                    }
+                } else {
+                    VerifyOtpResult(success = false, message = "Empty response from server")
+                }
+            } else {
+                VerifyOtpResult(success = false, message = "Unexpected error")
+            }
+
+        } catch (e: Exception) {
+            VerifyOtpResult(success = false, message = "Unexpected error")
+        }
+    }
+
 }

@@ -12,16 +12,18 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.compose.rememberNavController
+import com.example.glide.workspace.AppNavGraph
+import com.example.glide.workspace.auth.presentation.screens.OtpScreen
 import com.example.glide.workspace.auth.presentation.screens.RegisterUserScreen
-import com.example.glide.workspace.core.components.ThemedPrimaryButton
 import com.example.glide.workspace.ui.theme.AppTheme
+import com.example.glide.workspace.workspace_theme.presentation.ThemeScreen
 import com.example.glide.workspace.workspace_theme.presentation.ThemeViewModel
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -48,7 +50,9 @@ class MainActivity : ComponentActivity() {
                                .background(Color.Transparent) // Your background color
                                .padding(16.dp)
                        ){
-                           RegisterUserScreen() // Make sure this matches your function name
+                           val navController = rememberNavController()
+                           AppNavGraph(navController = navController)
+//                             ThemeScreen() // switch themes here for visualization
                        }
                     }
                 }

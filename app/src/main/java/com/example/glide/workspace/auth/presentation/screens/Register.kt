@@ -40,7 +40,7 @@ import com.example.glide.workspace.ui.theme.AppTheme
 fun RegisterUserScreen(
     modifier: Modifier = Modifier,
     viewModel: RegisterUserViewModel = hiltViewModel(),
-    onSuccess: () -> Unit = {}
+    onSuccess: (String, String) -> Unit = { _, _ -> }
 ) {
     val scrollState = rememberScrollState()
 
@@ -72,7 +72,7 @@ fun RegisterUserScreen(
             modifier = Modifier
             .fillMaxSize()
             .padding(14.dp)
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(scrollState)
         ) {
             Row(modifier = modifier.padding(8.dp)) {
                 ThemedPrimaryInputField (
@@ -199,6 +199,15 @@ fun RegisterUserScreen(
                 )
             }
 
+            Row(modifier = modifier.padding(8.dp)) {
+                Text(
+                    text = "Already have an account? Sign in",
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                )
+            }
+
 
 
             // Error Message
@@ -210,7 +219,7 @@ fun RegisterUserScreen(
             LaunchedEffect (viewModel.signUpResult) {
                 viewModel.signUpResult?.let { result ->
                     if (result.success) {
-                        onSuccess()
+                        onSuccess(viewModel.phone, viewModel.email)
                     }
                 }
             }
