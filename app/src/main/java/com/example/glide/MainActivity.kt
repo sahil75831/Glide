@@ -20,15 +20,20 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.rememberNavController
 import com.example.glide.workspace.AppNavGraph
+import com.example.glide.workspace.auth.data.local.AuthLocalDataSource
 import com.example.glide.workspace.auth.presentation.screens.OtpScreen
 import com.example.glide.workspace.auth.presentation.screens.RegisterUserScreen
 import com.example.glide.workspace.ui.theme.AppTheme
 import com.example.glide.workspace.workspace_theme.presentation.ThemeScreen
 import com.example.glide.workspace.workspace_theme.presentation.ThemeViewModel
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+    @Inject
+    lateinit var localDataSource: AuthLocalDataSource
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -51,7 +56,7 @@ class MainActivity : ComponentActivity() {
                                .padding(16.dp)
                        ){
                            val navController = rememberNavController()
-                           AppNavGraph(navController = navController)
+                           AppNavGraph(navController = navController, localDataSource = localDataSource)
 //                             ThemeScreen() // switch themes here for visualization
                        }
                     }
