@@ -8,51 +8,39 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.glide.R
-import com.example.glide.workspace.auth.presentation.viewModels.OtpViewModel
-import com.example.glide.workspace.core.components.DropDownVariant
+import com.example.glide.workspace.auth.presentation.viewModels.LoginUserViewModel
 import com.example.glide.workspace.core.components.InputFieldVariant
 import com.example.glide.workspace.core.components.ThemedPrimaryButton
-import com.example.glide.workspace.core.components.ThemedPrimaryDropdown
 import com.example.glide.workspace.core.components.ThemedPrimaryInputField
 
 @Composable
-fun OtpScreen(
-    phone: String = "438473434",
-    email: String = "ekfbckfc",
+fun LoginUserScreen(
     modifier: Modifier = Modifier,
-    viewModel: OtpViewModel = hiltViewModel(),
-    onSuccess: () -> Unit = {},
-    onBack: () ->  Unit = {},
-
+    viewModel: LoginUserViewModel = hiltViewModel(),
+    onSuccess: () -> Unit = {}
 ) {
     val scrollState = rememberScrollState()
-    // 🔥 Store navigation arguments INSIDE ViewModel only once
-    LaunchedEffect(Unit) {
-        viewModel.phone = phone
-        viewModel.email = email
-    }
 
     Column(modifier = modifier.fillMaxSize()) {
         Column {
             Text(
-                text = "Verify",
+                text = "Login",
                 modifier = modifier
                     .fillMaxWidth(),
                 fontSize = 32.sp,
@@ -61,7 +49,7 @@ fun OtpScreen(
                 color = MaterialTheme.colorScheme.primary
             )
             Text(
-                text = "Enter respective otp",
+                text = "Hi, Login to your account",
                 modifier = modifier
                     .fillMaxWidth(),
                 fontSize = 16.sp,
@@ -70,19 +58,19 @@ fun OtpScreen(
                 textAlign = TextAlign.Center,
                 color = MaterialTheme.colorScheme.primary
             )
-        }
-
-        Column {
             Image(
-                painter = painterResource(id = R.drawable.verify_otp),
-                contentDescription = "Welcome Image",
+                painter = painterResource(id = R.drawable.login_screen),
+                contentDescription = "Login Image",
                 contentScale = ContentScale.Fit,
                 modifier = Modifier
+                    .padding(vertical = 16.dp)
                     .fillMaxHeight(0.3f)
+                    .align(Alignment.CenterHorizontally),
             )
 
         }
-        // Content area --main body
+
+        // content area --main body
         Column (
             modifier = Modifier
                 .fillMaxSize()
@@ -92,75 +80,64 @@ fun OtpScreen(
             Row(modifier = modifier.padding(8.dp)) {
                 ThemedPrimaryInputField (
                     variant = InputFieldVariant.Filled,
-                    label = "Phone number",
-                    enabled = false,
-                    value = phone,
-                    supportingText = ""
-                )
-            }
-            Row(modifier = modifier.padding(8.dp)) {
-                ThemedPrimaryInputField (
-                    variant = InputFieldVariant.Filled,
-                    label = "Phone otp",
-                    placeHolder = "Enter otp sent on mobile",
-                    value = viewModel.phoneOtp,
-                    // keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-//                    isError = viewModel.phoneOtp.isBlank(),
-                    onValueChange = {viewModel.phoneOtp = it},
+                    label = "Email",
+                    placeHolder = "e.g emily.smith@example.com",
+                    value = viewModel.email,
+                    onValueChange = {viewModel.email = it},
                     supportingText = ""
                 )
             }
 
-            // --email
             Row(modifier = modifier.padding(8.dp)) {
-                ThemedPrimaryInputField (
+                ThemedPrimaryInputField(
                     variant = InputFieldVariant.Filled,
-                    label = "Email Id",
-                    enabled = false,
-                    value = email,
-                    supportingText = ""
-                )
-            }
-            Row(modifier = modifier.padding(8.dp)) {
-                ThemedPrimaryInputField (
-                    variant = InputFieldVariant.Filled,
-                    label = "Email otp",
-                    placeHolder = "Enter otp sent on email",
-                    value = viewModel.emailOtp,
-                    // keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                    // isError = viewModel.emailOtp.isBlank() ,
-                    onValueChange = {viewModel.emailOtp = it},
-                    supportingText = ""
+                    label = "Password",
+                    placeHolder = "Type your password here ..",
+                    value = viewModel.password,
+                    onValueChange = { viewModel.password = it }, // ← Fixed: was setting email!
+                    isError = viewModel.password.isNotBlank() && viewModel.password.length < 4,
+                    supportingText = if (viewModel.password.isNotBlank() && viewModel.password.length < 4) {
+                        "Password should be greater than 4 characters"
+                    } else { "" },
                 )
             }
 
             Row(modifier = modifier.padding(8.dp)) {
                 ThemedPrimaryButton(
-                    onClick = {viewModel.verifyOtp()},
+                    onClick = {viewModel.loginUser()},
                     enabled = if (
-                        viewModel.phoneOtp.isNotBlank() && viewModel.emailOtp.isNotBlank()) {
+                        viewModel.email.isNotBlank() && viewModel.password.isNotBlank()
+                    ) {
                         true
                     } else false,
                     isLoading = viewModel.isLoading,
-                    text = "Verify"
+                    text = "Login"
                 )
             }
+
             Row(modifier = modifier.padding(8.dp)) {
                 Text(
-                    text = "Resend OTP",
+                    text = "Don't have an account? Sign up",
                     style = MaterialTheme.typography.bodyMedium.copy(
                         color = MaterialTheme.colorScheme.primary
                     )
                 )
             }
 
-            LaunchedEffect(viewModel.verifyOtpResult) {
-                val result = viewModel.verifyOtpResult
-                if(result !=null && result.success){
-                    onSuccess()
+
+            // Error Message
+            viewModel.errorMessage?.let {
+                Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
+            }
+
+            // Success → Navigate
+            LaunchedEffect (viewModel.loginUserResult) {
+                    viewModel.loginUserResult?.let { result ->
+                        if(result.success){
+                            onSuccess()
+                        }
+                    }
                 }
             }
         }
     }
-
-}

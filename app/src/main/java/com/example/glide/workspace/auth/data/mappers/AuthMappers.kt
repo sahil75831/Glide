@@ -1,9 +1,15 @@
 package com.example.glide.workspace.auth.data.mappers
 
+import android.util.Log
+import androidx.compose.runtime.saveable.autoSaver
+import com.example.glide.workspace.auth.data.remote.dto.LoginResponseDTO
+import com.example.glide.workspace.auth.data.remote.dto.LoginUserDto
 import com.example.glide.workspace.auth.data.remote.dto.SignUpRequestDTO
 import com.example.glide.workspace.auth.data.remote.dto.SignUpResponseDTO
 import com.example.glide.workspace.auth.data.remote.dto.VerifyOtpRequestDTO
 import com.example.glide.workspace.auth.data.remote.dto.VerifyOtpResponseDTO
+import com.example.glide.workspace.auth.domain.models.LoginUser
+import com.example.glide.workspace.auth.domain.models.LoginUserResult
 import com.example.glide.workspace.auth.domain.models.SignUpResult
 import com.example.glide.workspace.auth.domain.models.User
 import com.example.glide.workspace.auth.domain.models.VerifyOtp
@@ -62,5 +68,22 @@ fun VerifyOtpResponseDTO.toVerifyOtpResult(): VerifyOtpResult {
     return VerifyOtpResult(
         success = success,
         message = message
+    )
+}
+
+// DOMAIN LAYER TO DATA LAYER
+fun LoginUser.toLoginUserDTO(): LoginUserDto {
+    return LoginUserDto(
+        email = email,
+        password = password
+    )
+}
+
+// DATA LAYER TO DOMAIN LAYER
+fun LoginResponseDTO.toLoginUserResult(): LoginUserResult {
+    return LoginUserResult(
+        success = success,
+        message = message,
+        authToken = authToken
     )
 }

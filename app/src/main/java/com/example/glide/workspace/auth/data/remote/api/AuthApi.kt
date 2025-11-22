@@ -1,5 +1,7 @@
 package com.example.glide.workspace.auth.data.remote.api
 
+import com.example.glide.workspace.auth.data.remote.dto.LoginResponseDTO
+import com.example.glide.workspace.auth.data.remote.dto.LoginUserDto
 import com.example.glide.workspace.auth.data.remote.dto.SignUpRequestDTO
 import com.example.glide.workspace.auth.data.remote.dto.SignUpResponseDTO
 import com.example.glide.workspace.auth.data.remote.dto.VerifyOtpRequestDTO
@@ -15,4 +17,7 @@ interface AuthApi {
 
     @POST(ApiEndpoints.VERIFY_OTP)
     suspend fun verifyOtp(@Body() verifyOtpRequest: VerifyOtpRequestDTO): Response<VerifyOtpResponseDTO>
+
+    @POST(ApiEndpoints.LOGIN_USER)
+    suspend fun loginUser(@Body() loginUser: LoginUserDto): Response<LoginResponseDTO>
 }

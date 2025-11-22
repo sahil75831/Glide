@@ -1,6 +1,5 @@
 package com.example.glide.workspace.auth.domain.usecases
 
-import com.example.glide.workspace.auth.domain.models.SignUpResult
 import com.example.glide.workspace.auth.domain.models.VerifyOtp
 import com.example.glide.workspace.auth.domain.models.VerifyOtpResult
 import com.example.glide.workspace.auth.domain.repository.AuthRepository

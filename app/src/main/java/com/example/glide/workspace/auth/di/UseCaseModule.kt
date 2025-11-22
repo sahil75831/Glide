@@ -1,6 +1,7 @@
 package com.example.glide.workspace.auth.di
 
 import com.example.glide.workspace.auth.domain.repository.AuthRepository
+import com.example.glide.workspace.auth.domain.usecases.LoginUserUseCase
 import com.example.glide.workspace.auth.domain.usecases.SignUpUseCase
 import com.example.glide.workspace.auth.domain.usecases.VerifyOtpUseCase
 import dagger.Module
@@ -25,5 +26,11 @@ object UseCaseModule {
     @Singleton
     fun provideVerifyOtpUseCase(authRepository: AuthRepository): VerifyOtpUseCase {
         return VerifyOtpUseCase(authRepository)
+    }
+
+    @Provides
+    @Singleton
+    fun provideLoginUserUseCase(authRepository: AuthRepository): LoginUserUseCase {
+        return LoginUserUseCase(authRepository)
     }
 }
