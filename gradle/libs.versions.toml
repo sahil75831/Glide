@@ -28,11 +28,19 @@ securityCrypto = "1.1.0-alpha06"  # For encrypted storage
 
 appcompat = "1.7.0" # or latest stable version
 
+confetti = "2.0.5"
+lottie = "6.3.0"
+
+
 
 [libraries]
 # Core Android
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
+
+# confetti
+confetti = { module = "nl.dionsegijn:konfetti-compose", version.ref = "confetti" }
+lottie-compose = { group = "com.airbnb.android", name = "lottie-compose", version = "6.3.0" }
 
 # Retrofit & OkHttp
 retrofit = { group = "com.squareup.retrofit2", name = "retrofit", version.ref = "retrofit" }

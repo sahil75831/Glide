@@ -1,21 +1,23 @@
 package com.example.glide.workspace
 
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import com.example.glide.R
 import com.example.glide.workspace.auth.data.local.AuthLocalDataSource
 import com.example.glide.workspace.auth.presentation.screens.LoginUserScreen
 import com.example.glide.workspace.auth.presentation.screens.OtpScreen
 import com.example.glide.workspace.auth.presentation.screens.RegisterUserScreen
-import com.example.glide.workspace.core.components.TopBarWithAvatarPreview
+import com.example.glide.workspace.community.presentation.screens.community_gateway.CommunityGateway
+import com.example.glide.workspace.community.presentation.screens.create_community.CreateCommunity
+import com.example.glide.workspace.core.components.ConfettiLottie
+//import com.example.glide.workspace.core.components.ConfettiScreen
+import com.example.glide.workspace.core.components.DimmedPopup
 
 
 @Composable
@@ -69,10 +71,20 @@ fun AppNavGraph(
         }
         // Add more screens as needed
         composable(route = "home") {
-            // Your home screen here
-//            Text("Welcome to Home! you are already logged in")
-            TopBarWithAvatarPreview()
+//            ConfettiScreen()
+//            Column {
+//                ConfettiLottie()
 
+//            }
+            DimmedPopup()
+
+            CommunityGateway(navController)
+//            TopBarWithAvatarPreview()
+
+        }
+
+        composable(route = "create-community"){
+            CreateCommunity(navController, onSuccess = {navController.navigate("home")})
         }
     }
 }

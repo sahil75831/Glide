@@ -5,4 +5,5 @@ object ApiEndpoints {
     const val SIGN_UP_USER: String = "/api/user-create"
     const val VERIFY_OTP: String = "/api/user/verify-otp"
     const val LOGIN_USER: String = "/api/user/login"
+    const val CREATE_COMMUNITY: String = "/api/community/create-community"
 }

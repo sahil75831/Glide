@@ -27,7 +27,7 @@ fun TopBarSocietyName(
                 .clickable { onSocietyClick() }
         )
         Text(
-            text = "Society Name >>",
+            text = "SJR - Chief admin admin ...",
             fontSize = 12.sp,
             fontWeight = FontWeight.Medium,
             modifier = modifier

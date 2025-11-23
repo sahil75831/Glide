@@ -92,4 +92,10 @@ dependencies {
 
     // fonts
     implementation(libs.androidx.appcompat)
+
+    // confetties
+    implementation(libs.confetti)
+    implementation(libs.lottie.compose)
+
+
 }

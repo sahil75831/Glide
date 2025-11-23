@@ -1,0 +1,7 @@
+I have done the auth module except resend otp and forgot password
+
+so what i have to done now
+
+1 :-) make sure that auth token should be auto deleted after 15 days for security reasons this should be configurable in settings and maximum should not be more that 30 days
+2 :-) now i have to make an api that will fetch all the user info that i need to show on the app for example communities created and communites of whh he is a member and name of society and the other things also so that i can display it everuwhere i need to dispaly
+3 :-) notification i will make at the last but research i will do in metro 
