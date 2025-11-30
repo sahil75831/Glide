@@ -1,11 +1,6 @@
 package com.example.glide.workspace
 
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -15,9 +10,7 @@ import com.example.glide.workspace.auth.presentation.screens.OtpScreen
 import com.example.glide.workspace.auth.presentation.screens.RegisterUserScreen
 import com.example.glide.workspace.community.presentation.screens.community_gateway.CommunityGateway
 import com.example.glide.workspace.community.presentation.screens.create_community.CreateCommunity
-import com.example.glide.workspace.core.components.ConfettiLottie
-//import com.example.glide.workspace.core.components.ConfettiScreen
-import com.example.glide.workspace.core.components.DimmedPopup
+import com.example.glide.workspace.core.components.JoinExploreCommunity
 
 
 @Composable
@@ -29,7 +22,8 @@ fun AppNavGraph(
     val authToken = localDataSource.getToken()
 
     val startDestination = if (!authToken.isNullOrEmpty()) {
-        "home"
+//        "home"
+        "join-explore-community"
     } else {
         "login"
     }
@@ -69,22 +63,18 @@ fun AppNavGraph(
                 }
             )
         }
+
         // Add more screens as needed
-        composable(route = "home") {
-//            ConfettiScreen()
-//            Column {
-//                ConfettiLottie()
-
-//            }
-            DimmedPopup()
-
+        composable(route = "community-gateway") {
             CommunityGateway(navController)
-//            TopBarWithAvatarPreview()
-
         }
 
         composable(route = "create-community"){
-            CreateCommunity(navController, onSuccess = {navController.navigate("home")})
+            CreateCommunity(navController, onSuccess = {navController.navigate("community-gateway")})
+        }
+
+        composable(route = "join-explore-community"){
+            JoinExploreCommunity()
         }
     }
 }

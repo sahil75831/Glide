@@ -5,10 +5,19 @@
       <SelectionState runConfigName="app">
         <option name="selectionMode" value="DROPDOWN" />
       </SelectionState>
-      <SelectionState runConfigName="PreviewInputFields - All Themes - Input Field">
+      <SelectionState runConfigName="PreviewCommunityList">
         <option name="selectionMode" value="DROPDOWN" />
       </SelectionState>
-      <SelectionState runConfigName="PreviewThemedPrimaryDropdown - All Themes - Dropdown">
+      <SelectionState runConfigName="CarouselExample">
+        <option name="selectionMode" value="DROPDOWN" />
+      </SelectionState>
+      <SelectionState runConfigName="AutoSlidingCarouselPreview">
+        <option name="selectionMode" value="DROPDOWN" />
+      </SelectionState>
+      <SelectionState runConfigName="CarouselPreview">
+        <option name="selectionMode" value="DROPDOWN" />
+      </SelectionState>
+      <SelectionState runConfigName="PreviewCarouselExample_MultiBrowse">
         <option name="selectionMode" value="DROPDOWN" />
       </SelectionState>
     </selectionStates>

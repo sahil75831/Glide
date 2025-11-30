@@ -4,9 +4,11 @@ import com.example.glide.workspace.auth.data.mappers.toVerifyOtpResult
 import com.example.glide.workspace.auth.domain.models.VerifyOtpResult
 import com.example.glide.workspace.community.data.mappers.toCreateCommunityRequestDTO
 import com.example.glide.workspace.community.data.mappers.toCreateCommunityResult
+import com.example.glide.workspace.community.data.mappers.toFetchUserCommunityResult
 import com.example.glide.workspace.community.data.remote.api.CommunityApi
 import com.example.glide.workspace.community.domain.models.CreateCommunity
 import com.example.glide.workspace.community.domain.models.CreateCommunityResult
+import com.example.glide.workspace.community.domain.models.FetchUserCommunityResult
 import com.example.glide.workspace.community.domain.repository.CommunityRepository
 import javax.inject.Inject
 
@@ -39,4 +41,25 @@ class CommunityRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun fetchUserCommunity(): FetchUserCommunityResult {
+        return try {
+            val response = api.fetchUserCommunity()
+            if(response.isSuccessful){
+                val body = response.body()
+                if(body != null){
+                    if(body.success){
+                        body.toFetchUserCommunityResult()
+                    }else{
+                        FetchUserCommunityResult(success = false, message = body.message)
+                    }
+                }else{
+                    FetchUserCommunityResult(success = false, message = "Empty response from server")
+                }
+            }else{
+                FetchUserCommunityResult(success = false, message = "Unexpected error", communities = emptyList())
+            }
+        }catch (e: Exception){
+            FetchUserCommunityResult(success = false, message = "Unexpected error", communities = emptyList())
+        }
+    }
 }

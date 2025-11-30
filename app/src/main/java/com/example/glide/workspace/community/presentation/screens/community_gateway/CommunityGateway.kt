@@ -97,7 +97,9 @@ fun CommunityGateway(navController: NavHostController, modifier: Modifier = Modi
                 fontSize = 16.sp,
                 fontStyle = FontStyle.Italic,
                 color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth().clickable {
+                    navController.navigate(route = "join-explore-community")
+                },
             )
 
             Separator(Modifier.fillMaxWidth())
