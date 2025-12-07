@@ -11,4 +11,8 @@ object ApiEndpoints {
     const val LOGIN_USER: String = "/api/auth/user-login"
     const val CREATE_COMMUNITY: String = "/api/community/create-community"
     const val FETCH_USER_COMMUNITY: String = "/api/community/user/list-community"
+    const val JOIN_COMMUNITY: String = "/api/community/join-new-user"
+    const val CREATE_CURRENT_COMMUNITY_ROLE: String = "/permission/create-role"
+    const val FETCH_ALL_PERMISSIONS: String = "/permission/get-all-permissions"
+
 }

@@ -7,12 +7,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 
-
 @Composable
 fun TopBarWithAvatar(
     modifier: Modifier = Modifier,
-    onSocietyClick: () -> Unit = {},
-    onNotificationClick: () -> Unit = {}
+    onBackClick: () -> Unit = {},
+    onGridClick: () -> Unit = {},
 ) {
     Row(
         modifier = modifier
@@ -21,24 +20,31 @@ fun TopBarWithAvatar(
         verticalAlignment = Alignment.CenterVertically
     ) {
 
-        // Avatar (Left)
         Avatar(modifier = modifier)
 
         Spacer(modifier = Modifier.width(8.dp))
 
-        // Society Name (Center)
         TopBarSocietyName(
             modifier = Modifier.weight(1f),
-            onSocietyClick = onSocietyClick
+            onSocietyClick = {}
         )
 
-        // Notification Bell (Right)
-        NotificationBell(
+        Spacer(modifier = Modifier.width(8.dp))
+
+        BackArrow(
             modifier = Modifier.size(26.dp),
-            onNotificationClick = onNotificationClick
+            onNotificationClick = onBackClick
+        )
+
+        Spacer(modifier = Modifier.width(8.dp))
+
+        AppGrid(
+            modifier = Modifier.size(26.dp),
+            onNotificationClick = onGridClick
         )
     }
 }
+
 
 @Preview(showBackground = true)
 @Composable

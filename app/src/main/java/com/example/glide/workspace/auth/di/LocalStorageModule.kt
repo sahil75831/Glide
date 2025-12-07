@@ -3,6 +3,7 @@ package com.example.glide.workspace.auth.di
 import android.content.Context
 import android.content.SharedPreferences
 import com.example.glide.workspace.auth.data.local.AuthLocalDataSource
+import com.example.glide.workspace.community.data.local.CommunityLocalDataSource
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -26,6 +27,12 @@ object LocalStorageModule {
     @Singleton
     fun provideAuthLocalDataSource(sharedPreferences: SharedPreferences): AuthLocalDataSource {
         return AuthLocalDataSource(sharedPreferences)
+    }
+
+    @Provides
+    @Singleton
+    fun provideCommunityLocalDataSource(sharedPreferences: SharedPreferences): CommunityLocalDataSource {
+        return CommunityLocalDataSource(sharedPreferences)
     }
 
 }

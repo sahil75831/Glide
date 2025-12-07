@@ -7,14 +7,18 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.glide.workspace.community.domain.models.CommunityMembership
 import com.example.glide.workspace.community.domain.models.FetchUserCommunityResult
+import com.example.glide.workspace.community.domain.models.JoinCommunityNewUser
+import com.example.glide.workspace.community.domain.models.JoinCommunityNewUserResult
 import com.example.glide.workspace.community.domain.usecases.FetchUserCommunityUseCase
+import com.example.glide.workspace.community.domain.usecases.JoinCommunityUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class JoinExploreCommunityViewModel @Inject constructor(
-    private val fetchUserCommunityUseCase: FetchUserCommunityUseCase
+    private val fetchUserCommunityUseCase: FetchUserCommunityUseCase,
+    private val joinCommunityUseCase: JoinCommunityUseCase
 ): ViewModel() {
     var inviteeCode by mutableStateOf("")
 
@@ -27,13 +31,46 @@ class JoinExploreCommunityViewModel @Inject constructor(
     var ownerCommunities by mutableStateOf<List<CommunityMembership>>(emptyList())
     var memberCommunities by mutableStateOf<List<CommunityMembership>>(emptyList())
 
+    // Join community specific states
+    var joinCommunityResult by mutableStateOf<JoinCommunityNewUserResult?>(null)
+    var joinCommunityLoading by mutableStateOf<Boolean>(false)
+    var joinCommunityErrorMessage by mutableStateOf<String?>(null)
+    var joinSuccess by mutableStateOf<Boolean>(false)
+
 
     init {
         getAllCommunities()
     }
 
     fun joinCommunity(){
-        // to be implemented
+       if(inviteeCode.isBlank()){
+           joinCommunityErrorMessage = "Invitee code is blank"
+           return
+       }
+        viewModelScope.launch {
+            joinCommunityLoading = true
+            joinCommunityErrorMessage = null
+            joinSuccess = false
+
+            try {
+                val joinCommunityRequest = JoinCommunityNewUser(inviteeCode)
+                val result = joinCommunityUseCase(joinCommunityRequest)
+                joinCommunityResult = result
+
+                if(result.success){
+                    joinSuccess = true
+                    getAllCommunities()
+                    // Clear the invite code after successful join
+                    inviteeCode = ""
+                }else{
+                    joinCommunityErrorMessage = result.message
+                }
+            }catch (e: Exception){
+                joinCommunityErrorMessage = "Failed to join community: ${e.message}"
+            } finally {
+                joinCommunityLoading = false
+            }
+        }
     }
 
     fun getAllCommunities(){

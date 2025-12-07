@@ -3,6 +3,7 @@ package com.example.glide.workspace.core.di
 
 import com.example.glide.workspace.auth.data.local.AuthLocalDataSource
 import com.example.glide.workspace.auth.data.remote.api.AuthApi
+import com.example.glide.workspace.community.data.local.CommunityLocalDataSource
 import com.example.glide.workspace.community.data.remote.api.CommunityApi
 import com.example.glide.workspace.community.network.interceptors.HeaderInterceptor
 import com.example.glide.workspace.core.ApiEndpoints
@@ -24,8 +25,9 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideHeaderInterceptor(
-        authLocalDataSource: AuthLocalDataSource
-    ): HeaderInterceptor = HeaderInterceptor(authLocalDataSource)
+        authLocalDataSource: AuthLocalDataSource,
+        communityLocalDataSource: CommunityLocalDataSource
+    ): HeaderInterceptor = HeaderInterceptor(authLocalDataSource, communityLocalDataSource)
 
     // 2) Provide OkHttpClient with BOTH logging + header interceptor
     @Provides

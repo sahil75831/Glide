@@ -12,6 +12,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+
 @HiltViewModel
 class CreateCommunityViewModel @Inject constructor(
     private val createCommunityUseCase: CreateCommunityUseCase

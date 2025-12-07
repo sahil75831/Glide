@@ -1,6 +1,8 @@
 package com.example.glide.workspace
 
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -10,7 +12,10 @@ import com.example.glide.workspace.auth.presentation.screens.OtpScreen
 import com.example.glide.workspace.auth.presentation.screens.RegisterUserScreen
 import com.example.glide.workspace.community.presentation.screens.community_gateway.CommunityGateway
 import com.example.glide.workspace.community.presentation.screens.create_community.CreateCommunity
-import com.example.glide.workspace.core.components.JoinExploreCommunity
+import com.example.glide.workspace.community.presentation.screens.current_community.CurrentCommunityHomeScreen
+import com.example.glide.workspace.community.presentation.screens.join_explore_community.JoinExploreCommunity
+import com.example.glide.workspace.core.components.TopBarSocietyName
+import com.example.glide.workspace.core.components.TopBarWithAvatar
 
 
 @Composable
@@ -22,11 +27,12 @@ fun AppNavGraph(
     val authToken = localDataSource.getToken()
 
     val startDestination = if (!authToken.isNullOrEmpty()) {
-//        "home"
         "join-explore-community"
     } else {
         "login"
     }
+
+
 
 
     NavHost(navController, startDestination = startDestination) {
@@ -74,7 +80,13 @@ fun AppNavGraph(
         }
 
         composable(route = "join-explore-community"){
-            JoinExploreCommunity()
+            JoinExploreCommunity(navController)
+        }
+
+        composable(route = "current-community/{itemId}"){ backStackEntry ->
+            val currentCommunityId = backStackEntry.arguments?.getString("itemId") ?: ""
+            CurrentCommunityHomeScreen(navController, currentCommunityId, modifier = Modifier)
+
         }
     }
 }

@@ -4,6 +4,7 @@ package com.example.glide.workspace.core.components
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -19,6 +20,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavHostController
 import com.example.glide.R
 import com.example.glide.workspace.community.domain.models.CommunityMembership
 
@@ -26,6 +28,7 @@ import com.example.glide.workspace.community.domain.models.CommunityMembership
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
     fun ExploreCommunityCarousel(
+    navController: NavHostController,
     modifier: Modifier = Modifier,
     communities: List<CommunityMembership> = emptyList()
     ) {
@@ -41,8 +44,10 @@ import com.example.glide.workspace.community.domain.models.CommunityMembership
 
     val carouselItems = if (communities.isNotEmpty()){
         communities.map {
+
             communityMembership -> CarouselItem(
-                id = communityMembership.membershipId,
+//                id = communityMembership.membershipId, // this is ucrID
+                id = communityMembership.community.id,
                 imageResId = R.drawable.explore_community_card,
                 title = communityMembership.community.name,
                 city = communityMembership.community.city,
@@ -76,7 +81,11 @@ import com.example.glide.workspace.community.domain.models.CommunityMembership
     ) { i ->
         val item = carouselItems[i]
         Card(
-            modifier = Modifier.padding(6.dp)
+            modifier = Modifier.padding(6.dp).clickable {
+                // navigating based on community id
+                navController.navigate("current-community/${item.id}")
+
+            }
                 .width(320.dp)
                 .height(120.dp)
                 .border(
@@ -156,10 +165,10 @@ import com.example.glide.workspace.community.domain.models.CommunityMembership
     }
 }
 
-@Preview(showBackground = true, showSystemUi = true)
-@Composable
-fun PreviewExploreCarouselExample() {
-    MaterialTheme {
-        ExploreCommunityCarousel()
-    }
-}
+//@Preview(showBackground = true, showSystemUi = true)
+//@Composable
+//fun PreviewExploreCarouselExample() {
+//    MaterialTheme {
+//        ExploreCommunityCarousel(navController = NavHostController("cn"))
+//    }
+//}

@@ -1,7 +1,1 @@
-I have done the auth module except resend otp and forgot password
-
-so what i have to done now
-
-1 :-) make sure that auth token should be auto deleted after 15 days for security reasons this should be configurable in settings and maximum should not be more that 30 days
-2 :-) join through invitee code functionality i have to make everytihngis done just i need to integtate it viewmmodel and screen thatis and i think usecase also
-3 :-) notification i will make at the last but research i will do in metro 
+ note i have mde one api to fetch all roles os a partiular community that i will show in the screen and one more api i have to make that will list all the permission in the dropdown and also one more api that will load the permission token in the communitydata store
